@@ -5,14 +5,9 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Context;
-import android.hardware.Sensor;
-import android.hardware.SensorEvent;
-import android.hardware.SensorEventListener;
-import android.hardware.SensorManager;
 import android.Manifest;
 import android.app.AppOpsManager;
 import android.content.ComponentName;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
@@ -27,7 +22,6 @@ import android.os.IBinder;
 import android.util.Log;
 
 import android.provider.Settings;
-import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -35,10 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-public class MainActivity extends AppCompatActivity implements SensorEventListener {
-
-    private SensorManager sensorManager;
-    private Sensor light;
+public class MainActivity extends AppCompatActivity {
 
     final public static String TAG = "SmartBrightMainActiviy";
     final private int REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS = 1234;
@@ -60,30 +51,9 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         }
 
         // Start application
-        Intent i=new Intent(MainActivity.this, ServiceClassPhone.class);
-        startService(i); // it is needed since service should run after activity is destroyed.
-        bindService(i, connection, Context.BIND_AUTO_CREATE);
-        setUpSensors();
-    }
-
-    private void setUpSensors() {
-        sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-        light = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT);
-
-        sensorManager.registerListener(this, light, SensorManager.SENSOR_DELAY_NORMAL);
-    }
-
-    @Override
-    public final void onSensorChanged(SensorEvent event) {
-        System.out.println("hello");
-        float lxLight = event.values[0];
-        Log.w("myTag", "Light " + lxLight);
-    }
-
-
-    @Override
-    public final void onAccuracyChanged(Sensor sensor, int accuracy) {
-        // Do something here if sensor accuracy changes.
+        Intent intent = new Intent(MainActivity.this, ServiceClassPhone.class);
+        startService(intent); // it is needed since service should run after activity is destroyed.
+        bindService(intent, connection, Context.BIND_AUTO_CREATE);
     }
 
     @RequiresApi(api = Build.VERSION_CODES.R)
