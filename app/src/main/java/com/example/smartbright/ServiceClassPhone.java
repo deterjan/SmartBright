@@ -19,7 +19,8 @@ import androidx.annotation.Nullable;
 @TargetApi(Build.VERSION_CODES.R)
 public class ServiceClassPhone extends Service implements SensorEventListener {
 
-    protected void onCreate(Bundle savedInstanceState) {
+    @Override
+    public void onCreate() {
         setUpSensors();
     }
 
