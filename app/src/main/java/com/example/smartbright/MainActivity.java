@@ -86,8 +86,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         // Do something here if sensor accuracy changes.
     }
 
-    }
-
     @RequiresApi(api = Build.VERSION_CODES.R)
     private void getAllPermissions(){
         List<String> permissionsNeeded = new ArrayList<>();
@@ -267,9 +265,5 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         }
     };
 
-
-
-
-}
 }
 
