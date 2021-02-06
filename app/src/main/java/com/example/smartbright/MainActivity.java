@@ -71,7 +71,6 @@ public class MainActivity extends AppCompatActivity {
             if (!Settings.System.canWrite(getApplicationContext())) {
                 Intent intent = new Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + getPackageName()));
                 startActivityForResult(intent, REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS);
-
             }
         }
 

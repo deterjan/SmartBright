@@ -80,6 +80,8 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
 
     private SensorManager sensorManager;
     private Sensor light;
+    private Sensor acceleration;
+    private Sensor gyro;
 
     private void setUpSensors() {
 
@@ -87,9 +89,25 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
 
         // Light sensor
         light = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT);
-        // Apend light to map
+        sensorManager.registerListener(this, light, SensorManager.SENSOR_DELAY_NORMAL);
         sensorsValues.put("ambient_light","");
 
-        sensorManager.registerListener(this, light, SensorManager.SENSOR_DELAY_NORMAL);
+        // Accelerometer
+        acceleration = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        sensorManager.registerListener(this, acceleration, SensorManager.SENSOR_DELAY_NORMAL);
+        sensorsValues.put("acc_x","");
+        sensorsValues.put("acc_y","");
+        sensorsValues.put("acc_z","");
+
+        // gyroscope
+        gyro = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+        sensorManager.registerListener(this, gyro, SensorManager.SENSOR_DELAY_NORMAL);
+        sensorsValues.put("gyro_x","");
+        sensorsValues.put("gyro_y","");
+        sensorsValues.put("gyro_z","");
+
+        // Setup brightness of the screen
+
+
     }
 }
