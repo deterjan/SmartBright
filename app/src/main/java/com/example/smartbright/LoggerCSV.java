@@ -10,8 +10,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
-import static android.icu.lang.UCharacter.WordBreak.NEWLINE;
-
 public class LoggerCSV implements Logger {
 
     // Vars
@@ -20,7 +18,14 @@ public class LoggerCSV implements Logger {
     private static FileOutputStream outputStream;
     final private static Object fileLock = new Object();
 
-    public LoggerCSV(Context c) {
+    private static final byte[] SPACE  = " ".getBytes();
+    private static final byte[] NEWLINE= "\n".getBytes();
+    private static final byte[] COMMA= ",".getBytes();
+
+    public LoggerCSV(Context c, List<String> keys) {
+        // Set the keys
+        setKeys(keys);
+
         // Create first file
         createFile(c);
     }
@@ -32,16 +37,45 @@ public class LoggerCSV implements Logger {
     public void createFile(Context c){
 
         // Set filename
-        FILENAME = "smartbright_" + getTime() + ".log";
+        FILENAME = "smartbright_" + new SimpleDateFormat("yyyy_MM_dd_HHmmss").format(new Date()) + ".log";
 
         // Create file
         synchronized (fileLock) {
             try {
                 outputStream = c.openFileOutput(FILENAME, Context.MODE_APPEND);
+                appendHeader();
+
                 Log.d(Definitions.TAG, "Log File:" + FILENAME + " created");
             } catch (Exception e) {
                 Log.e(Definitions.TAG, "Can't open file " + FILENAME + ":" + e);
 
+            }
+        }
+
+    }
+
+    public void appendHeader(){
+
+        // Init line
+        StringBuilder line = new StringBuilder();
+
+        line.append("time");
+        line.append(",");
+
+        for (String key: keys){
+            line.append(key);
+            line.append(",");
+        }
+        // Delete last comma
+        line.deleteCharAt(line.length()-1);
+
+        synchronized (fileLock){
+            try {
+                outputStream.write(line.toString().getBytes());
+                outputStream.write(NEWLINE);
+
+            } catch (IOException ioe) {
+                Log.e(Definitions.TAG, "ERROR: Can't write header to file: " + ioe);
             }
         }
 
@@ -57,7 +91,6 @@ public class LoggerCSV implements Logger {
     }
 
 
-    @Override
     public void appendValues(Map<String, String> values) {
         // Init line
         StringBuilder line = new StringBuilder();

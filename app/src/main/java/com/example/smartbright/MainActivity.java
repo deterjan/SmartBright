@@ -244,7 +244,6 @@ public class MainActivity extends AppCompatActivity {
                 }
 
 
-
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     if (!Settings.System.canWrite(getApplicationContext())) {
                         Intent intent = new Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + getPackageName()));
