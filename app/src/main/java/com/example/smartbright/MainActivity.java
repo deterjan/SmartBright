@@ -1,5 +1,6 @@
 package com.example.smartbright;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -30,9 +31,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
+import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.SeekBar;
+
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageMetadata;
+import com.google.firebase.storage.StorageReference;
+import com.google.firebase.storage.UploadTask;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -54,6 +64,7 @@ public class MainActivity extends AppCompatActivity {
 
     // SeekBar to adjust brightness
     SeekBar seekBar;
+    Button button;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,6 +79,9 @@ public class MainActivity extends AppCompatActivity {
 
         // Get seekBar ID
         seekBar = findViewById(R.id.seekBar);
+
+        // Get button ID
+        button = findViewById(R.id.button);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (!Settings.System.canWrite(getApplicationContext())) {
@@ -121,6 +135,13 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
 
+            }
+        });
+
+        button.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                // Code here executes on main thread after user presses button
+                FileUpload.uploadTest("EXAMPLE".getBytes());
             }
         });
 
