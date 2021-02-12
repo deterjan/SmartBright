@@ -46,14 +46,12 @@ import com.google.firebase.storage.UploadTask;
 
 public class MainActivity extends AppCompatActivity {
 
-    final public static String TAG = "SmartBrightMainActiviy";
     final private int REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS = 1234;
     final private static boolean DBG = Definitions.DBG;
     ServiceClassPhone myService;
     boolean mBound = false;
 
     Random r;
-
 
     //Variable to store brightness value
     private int brightness;
@@ -73,7 +71,7 @@ public class MainActivity extends AppCompatActivity {
 
         // Get all permissions
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            Log.d(TAG , "Getting all permissions");
+            Log.d(Definitions.TAG , "Getting all permissions");
             getAllPermissions();
         }
 
@@ -87,7 +85,6 @@ public class MainActivity extends AppCompatActivity {
             if (!Settings.System.canWrite(getApplicationContext())) {
                 Intent intent = new Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + getPackageName()));
                 startActivityForResult(intent, REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS);
-
             }
         }
 
@@ -267,7 +264,6 @@ public class MainActivity extends AppCompatActivity {
                 }
 
 
-
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     if (!Settings.System.canWrite(getApplicationContext())) {
                         Intent intent = new Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + getPackageName()));
@@ -306,10 +302,10 @@ public class MainActivity extends AppCompatActivity {
                 r = new Random();
                 int ran = r.nextInt(10000 - 1) + 1;
                 prefs.edit().putInt(Definitions.DEVICE_ID , ran).commit();
-                if (DBG) Log.d(TAG , "Device unique id is created: " + ran);
+                if (DBG) Log.d(Definitions.TAG , "Device unique id is created: " + ran);
             }
         } catch (Exception e){
-            if (DBG) Log.d(TAG , "Device unique id is not created: " + e);
+            if (DBG) Log.d(Definitions.TAG , "Device unique id is not created: " + e);
         }
     }
 
