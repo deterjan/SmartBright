@@ -12,6 +12,6 @@ public class Definitions {
     final static public String DEVICE_ID = "DEVICE_ID";
 
     // Sensors being logged
-    final static public List<String> sensorsLogged = new ArrayList<> (Arrays.asList("ambient_light"));
+    final static public List<String> sensorsLogged = new ArrayList<> (Arrays.asList("ambient_light","acc_x","acc_y","acc_z","gyro_x","gyro_y","gyro_z"));
 
 }

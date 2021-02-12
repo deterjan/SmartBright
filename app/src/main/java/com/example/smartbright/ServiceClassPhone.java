@@ -18,6 +18,8 @@ import androidx.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.example.smartbright.Definitions.TAG;
+
 @TargetApi(Build.VERSION_CODES.R)
 public class ServiceClassPhone extends Service implements SensorEventListener {
 
@@ -60,16 +62,70 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
     @Override
     public final void onSensorChanged(SensorEvent event) {
 
-        // Get lxlight value
-        Float lxLight = event.values[0];
+        // Sensor obj
+        Sensor sensor = event.sensor;
+        int type = sensor.getType();
 
-        // change Hashmap to be printed
-        sensorsValues.put("ambient_light",lxLight.toString());
+        // Bool to assert that we made any change
+        boolean do_log = false;
+
+        try {
+            if (type == Sensor.TYPE_GYROSCOPE){
+
+                // Get vals
+                Float gyro_x = event.values[0];
+                Float gyro_y = event.values[1];
+                Float gyro_z = event.values[2];
+
+                // Change hashmap to be printed to log
+                sensorsValues.put("gyro_x",gyro_x.toString());
+                sensorsValues.put("gyro_y",gyro_y.toString());
+                sensorsValues.put("gyro_z",gyro_z.toString());
+
+                // Make sure we log
+                do_log = true;
+                Log.w("myTag", "gyro_x " + gyro_x + " gyro_y " + gyro_y + " gyro_z " + gyro_z);
+
+            }
+            if (type == Sensor.TYPE_ACCELEROMETER) {
+
+                // Get vals
+                Float acc_x = event.values[0];
+                Float acc_y = event.values[1];
+                Float acc_z = event.values[2];
+
+                // Change hashmap to be printed to log
+                sensorsValues.put("acc_x",acc_x.toString());
+                sensorsValues.put("acc_y",acc_y.toString());
+                sensorsValues.put("acc_z",acc_z.toString());
+
+                // Make sure we log
+                do_log = true;
+                Log.w("myTag", "acc_x " + acc_x + " acc_y " + acc_y + " acc_z " + acc_z);
+
+            }
+            if (type == Sensor.TYPE_LIGHT){
+
+                // Get lxlight value
+                Float lxLight = event.values[0];
+
+                // change Hashmap to be printed
+                sensorsValues.put("ambient_light",lxLight.toString());
+
+                // Make sure we log
+                do_log = true;
+                Log.w("myTag", "Light " + lxLight);
+
+            }
+        } catch (Exception e) {
+            Log.d(TAG , "Error in sensor reading");
+        }
 
         // Log
-        logger.appendValues(sensorsValues);
+        if (do_log) {
+            logger.appendValues(sensorsValues);
+        }
 
-        Log.w("myTag", "Light " + lxLight);
     }
 
 
