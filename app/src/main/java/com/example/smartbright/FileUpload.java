@@ -11,7 +11,6 @@ import com.google.firebase.storage.StorageMetadata;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 
-import static com.example.smartbright.MainActivity.TAG;
 
 public class FileUpload {
     private static FirebaseStorage storage = FirebaseStorage.getInstance();
@@ -25,12 +24,12 @@ public class FileUpload {
             @Override
             public void onFailure(@NonNull Exception exception) {
                 // Handle unsuccessful uploads
-                Log.d(TAG, "Failed upload");
+                Log.d(Definitions.TAG, "Failed upload");
             }
         }).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
             @Override
             public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
-                Log.d(TAG, "Successful upload");
+                Log.d(Definitions.TAG, "Successful upload");
             }
         });
     }
