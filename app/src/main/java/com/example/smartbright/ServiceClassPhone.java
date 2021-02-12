@@ -195,7 +195,6 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
                 do_log = true;
                 Log.w("myTag", "heart_rate " + heart_rate);
             }
-
         } catch (Exception e) {
             Log.d(TAG , "Error in sensor reading");
         }
