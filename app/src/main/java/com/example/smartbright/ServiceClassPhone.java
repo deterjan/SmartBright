@@ -117,6 +117,85 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
                 Log.w("myTag", "Light " + lxLight);
 
             }
+            if (type == Sensor.TYPE_AMBIENT_TEMPERATURE){
+
+                // Get temperature
+                Float temp = event.values[0];
+
+                // change Hashmap to be printed
+                sensorsValues.put("temperature",temp.toString());
+
+                // Make sure we log
+                do_log = true;
+                Log.w("myTag", "Temp " + temp);
+            }
+            if (type == Sensor.TYPE_PROXIMITY){
+                // Get detect flag
+                Float proximity = event.values[0];
+
+                // change Hashmap to be printed
+                sensorsValues.put("proximity",proximity.toString());
+
+                // Make sure we log
+                do_log = true;
+                Log.w("myTag", "proximity " + proximity);
+            }
+            if (type == Sensor.TYPE_STATIONARY_DETECT){
+                // Get detect flag
+                Float stationary_detect = event.values[0];
+
+                // change Hashmap to be printed
+                sensorsValues.put("stationary_detect",stationary_detect.toString());
+
+                // Make sure we log
+                do_log = true;
+                Log.w("myTag", "stationary_detect " + stationary_detect);
+            }
+            if (type == Sensor.TYPE_RELATIVE_HUMIDITY){
+                // Get detect flag
+                Float humidity = event.values[0];
+
+                // change Hashmap to be printed
+                sensorsValues.put("humidity",humidity.toString());
+
+                // Make sure we log
+                do_log = true;
+                Log.w("myTag", "humidity " + humidity);
+            }
+            if (type == Sensor.TYPE_PRESSURE){
+                // Get detect flag
+                Float pressure = event.values[0];
+
+                // change Hashmap to be printed
+                sensorsValues.put("pressure",pressure.toString());
+
+                // Make sure we log
+                do_log = true;
+                Log.w("myTag", "pressure " + pressure);
+            }
+            if (type == Sensor.TYPE_MOTION_DETECT){
+                // Get detect flag
+                Float motion_detect = event.values[0];
+
+                // change Hashmap to be printed
+                sensorsValues.put("motion_detect",motion_detect.toString());
+
+                // Make sure we log
+                do_log = true;
+                Log.w("myTag", "motion_detect " + motion_detect);
+            }
+            if (type == Sensor.TYPE_HEART_RATE){
+                // Get detect flag
+                Float heart_rate = event.values[0];
+
+                // change Hashmap to be printed
+                sensorsValues.put("heart_rate",heart_rate.toString());
+
+                // Make sure we log
+                do_log = true;
+                Log.w("myTag", "heart_rate " + heart_rate);
+            }
+
         } catch (Exception e) {
             Log.d(TAG , "Error in sensor reading");
         }
@@ -138,6 +217,13 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
     private Sensor light;
     private Sensor acceleration;
     private Sensor gyro;
+    private Sensor temperature;
+    private Sensor walking;
+    private Sensor stationary;
+    private Sensor humidity;
+    private Sensor pressure;
+    private Sensor motion_detect;
+    private Sensor heart_rate;
 
     private void setUpSensors() {
 
@@ -163,6 +249,36 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
         sensorsValues.put("gyro_z","");
 
         // Setup brightness of the screen
+        //BrightnessObserver brightnessObserver = new BrightnessObserver();
+
+
+        // Temperature
+        temperature = sensorManager.getDefaultSensor(Sensor.TYPE_AMBIENT_TEMPERATURE);
+        sensorManager.registerListener(this, temperature, SensorManager.SENSOR_DELAY_NORMAL);
+
+        // Step detector (1 if step detected)
+        walking = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_DETECTOR);
+        sensorManager.registerListener(this, walking, SensorManager.SENSOR_DELAY_NORMAL);
+
+        // Stationary detect
+        stationary = sensorManager.getDefaultSensor(Sensor.TYPE_STATIONARY_DETECT);
+        sensorManager.registerListener(this, stationary, SensorManager.SENSOR_DELAY_NORMAL);
+
+        // Humidity
+        humidity = sensorManager.getDefaultSensor(Sensor.TYPE_RELATIVE_HUMIDITY);
+        sensorManager.registerListener(this, humidity, SensorManager.SENSOR_DELAY_NORMAL);
+
+        // Pressure
+        pressure = sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE);
+        sensorManager.registerListener(this, pressure, SensorManager.SENSOR_DELAY_NORMAL);
+
+        // Motion detect
+        motion_detect = sensorManager.getDefaultSensor(Sensor.TYPE_MOTION_DETECT);
+        sensorManager.registerListener(this, motion_detect, SensorManager.SENSOR_DELAY_NORMAL);
+
+        // Heart Rate
+        heart_rate = sensorManager.getDefaultSensor(Sensor.TYPE_HEART_RATE);
+        sensorManager.registerListener(this, heart_rate, SensorManager.SENSOR_DELAY_NORMAL);
 
 
     }
