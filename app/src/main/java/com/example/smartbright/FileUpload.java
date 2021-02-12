@@ -11,7 +11,7 @@ import com.google.firebase.storage.StorageMetadata;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 
-import static com.example.smartbright.MainActivity.TAG;
+import static com.example.smartbright.Definitions.TAG;
 
 public class FileUpload {
     private static FirebaseStorage storage = FirebaseStorage.getInstance();
