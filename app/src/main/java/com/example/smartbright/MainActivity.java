@@ -1,6 +1,5 @@
 package com.example.smartbright;
 
-import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -30,19 +29,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.UUID;
 
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.SeekBar;
-
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.firebase.storage.FirebaseStorage;
-import com.google.firebase.storage.StorageMetadata;
-import com.google.firebase.storage.StorageReference;
-import com.google.firebase.storage.UploadTask;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -59,6 +52,22 @@ public class MainActivity extends AppCompatActivity {
     private ContentResolver cResolver;
     //Window object, that will store a reference to the current window
     private Window window;
+
+    private ServiceConnection connection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName className,
+                                       IBinder service) {
+            // We've bound to LocalService, cast the IBinder and get LocalService instance
+            ServiceClassPhone.LocalBinder binder = (ServiceClassPhone.LocalBinder) service;
+            myService = binder.getService();
+            mBound = true;
+        }
+        @Override
+        public void onServiceDisconnected(ComponentName arg0) {
+            mBound = false;
+        }
+    };
+
 
     // SeekBar to adjust brightness
     SeekBar seekBar;
@@ -94,22 +103,6 @@ public class MainActivity extends AppCompatActivity {
         //Get the current window
         window = getWindow();
 
-        try
-        {
-            // To handle the auto
-            Settings.System.putInt(cResolver,
-                    Settings.System.SCREEN_BRIGHTNESS_MODE, Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL);
-            //Get the current system brightness
-            brightness = Settings.System.getInt(cResolver, Settings.System.SCREEN_BRIGHTNESS);
-        }
-        catch (Settings.SettingNotFoundException e)
-        {
-            //Throw an error case it couldn't be retrieved
-            Log.e("Error", "Cannot access system brightness");
-            e.printStackTrace();
-        }
-
-
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean b) {
@@ -138,10 +131,8 @@ public class MainActivity extends AppCompatActivity {
         button.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 // Code here executes on main thread after user presses button
-                FileUpload.uploadTest("EXAMPLE".getBytes());
             }
         });
-
 
         // Start application
         Intent intent = new Intent(MainActivity.this, ServiceClassPhone.class);
@@ -149,6 +140,7 @@ public class MainActivity extends AppCompatActivity {
         bindService(intent, connection, Context.BIND_AUTO_CREATE);
     }
 
+    // PERMISSION METHODS
     @RequiresApi(api = Build.VERSION_CODES.R)
     private void getAllPermissions(){
         List<String> permissionsNeeded = new ArrayList<>();
@@ -308,24 +300,5 @@ public class MainActivity extends AppCompatActivity {
             if (DBG) Log.d(Definitions.TAG , "Device unique id is not created: " + e);
         }
     }
-
-
-    private ServiceConnection connection = new ServiceConnection() {
-
-        @Override
-        public void onServiceConnected(ComponentName className,
-                                       IBinder service) {
-            // We've bound to LocalService, cast the IBinder and get LocalService instance
-            ServiceClassPhone.LocalBinder binder = (ServiceClassPhone.LocalBinder) service;
-            myService = binder.getService();
-            mBound = true;
-        }
-
-        @Override
-        public void onServiceDisconnected(ComponentName arg0) {
-            mBound = false;
-        }
-    };
-
 }
 

@@ -1,5 +1,6 @@
 package com.example.smartbright;
 
+import android.net.Uri;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -11,27 +12,35 @@ import com.google.firebase.storage.StorageMetadata;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 
+import java.io.File;
+
 import static com.example.smartbright.Definitions.TAG;
 
 public class FileUpload {
     private static FirebaseStorage storage = FirebaseStorage.getInstance();
     private static StorageReference rootStorageRef = storage.getReference();
-    private static  StorageMetadata metadata;
-    private static StorageReference logStorageRef = rootStorageRef.child("Arff.log").child("test123");
+    private static StorageMetadata metadata;
 
-    public static void uploadTest(byte[] bytes) {
-        UploadTask uploadTask = logStorageRef.putBytes(bytes);
+    public static void uploadLog(String filepath, String filename) {
+        StorageReference logStorageRef = rootStorageRef.child("logs").child(filename);
+
+        Uri file = Uri.fromFile(new File(filepath));
+        UploadTask uploadTask = logStorageRef.putFile(file);
+
+        // Register observers to listen for when the download is done or if it fails
         uploadTask.addOnFailureListener(new OnFailureListener() {
             @Override
             public void onFailure(@NonNull Exception exception) {
                 // Handle unsuccessful uploads
-                Log.d(TAG, "Failed upload");
+                Log.d(TAG, "Failed upload " + filename);
             }
         }).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
             @Override
             public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
-                Log.d(TAG, "Successful upload");
+                Log.d(TAG, "Successful upload " + filename);
             }
         });
     }
+
+
 }

@@ -6,5 +6,5 @@ public class DataHolder {
     public void setVoicePermission(boolean voice_permission){this.voice_permission = voice_permission;}
 
     private static final DataHolder holder = new DataHolder();
-    public static DataHolder getInstance() {return holder;}
+    public static DataHolder getInstance() { return holder; }
 }

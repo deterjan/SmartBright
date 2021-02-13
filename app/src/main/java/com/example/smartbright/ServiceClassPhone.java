@@ -2,15 +2,19 @@ package com.example.smartbright;
 
 import android.annotation.TargetApi;
 import android.app.Service;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
+import android.database.ContentObserver;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Binder;
 import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
+import android.provider.Settings;
 import android.util.Log;
 
 import androidx.annotation.Nullable;
@@ -23,28 +27,43 @@ import static com.example.smartbright.Definitions.TAG;
 @TargetApi(Build.VERSION_CODES.R)
 public class ServiceClassPhone extends Service implements SensorEventListener {
 
-    private final IBinder mBinder = new LocalBinder();
-
     // Declare vars
     Logger logger;
-
     private Map<String, String> sensorsValues;
-
+    private final IBinder mBinder = new LocalBinder();
+    private ContentResolver contentResolver;
+    private ContentObserver brightnessObserver;
 
     @Override
     public void onCreate() {
-
         sensorsValues = new HashMap<String, String>();
+        contentResolver = getContentResolver();
 
         // Setup the sensors
         setUpSensors();
 
+        brightnessObserver = new ContentObserver(new Handler()) {
+            @Override
+            public void onChange(boolean selfChange) {
+                int brightness = Settings.System.getInt(contentResolver,Settings.System.SCREEN_BRIGHTNESS,0);
+                sensorsValues.put("screen_brightness", Integer.toString(brightness));
+
+                Log.d("myTag", "screen_brightness " + brightness);
+                logger.appendValues(sensorsValues);
+            }
+        };
+        // put initial brightness value in map
+        int brightness = Settings.System.getInt(contentResolver,Settings.System.SCREEN_BRIGHTNESS,0);
+        sensorsValues.put("screen_brightness", Integer.toString(brightness));
+        sensorsValues.put("user_changed_brightness", "1");
+
         // Create log file
         logger = new LoggerCSV(this, Definitions.sensorsLogged);
 
+        contentResolver.registerContentObserver(
+                Settings.System.getUriFor(Settings.System.SCREEN_BRIGHTNESS),
+                false,brightnessObserver);
     }
-
-
 
     public class LocalBinder extends Binder {
         ServiceClassPhone getService() {
@@ -61,13 +80,13 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
 
     @Override
     public final void onSensorChanged(SensorEvent event) {
-
         // Sensor obj
         Sensor sensor = event.sensor;
         int type = sensor.getType();
 
         // Bool to assert that we made any change
-        boolean do_log = false;
+        // TODO maybe shouldnt log if we got the same reading as last time?
+        boolean shouldLog = false;
 
         try {
             if (type == Sensor.TYPE_GYROSCOPE){
@@ -83,8 +102,8 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
                 sensorsValues.put("gyro_z",gyro_z.toString());
 
                 // Make sure we log
-                do_log = true;
-                Log.w("myTag", "gyro_x " + gyro_x + " gyro_y " + gyro_y + " gyro_z " + gyro_z);
+                shouldLog = true;
+                Log.d("myTag", "gyro_x " + gyro_x + " gyro_y " + gyro_y + " gyro_z " + gyro_z);
 
             }
             if (type == Sensor.TYPE_ACCELEROMETER) {
@@ -100,8 +119,8 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
                 sensorsValues.put("acc_z",acc_z.toString());
 
                 // Make sure we log
-                do_log = true;
-                Log.w("myTag", "acc_x " + acc_x + " acc_y " + acc_y + " acc_z " + acc_z);
+                shouldLog = true;
+                Log.d("myTag", "acc_x " + acc_x + " acc_y " + acc_y + " acc_z " + acc_z);
 
             }
             if (type == Sensor.TYPE_LIGHT){
@@ -113,8 +132,8 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
                 sensorsValues.put("ambient_light",lxLight.toString());
 
                 // Make sure we log
-                do_log = true;
-                Log.w("myTag", "Light " + lxLight);
+                shouldLog = true;
+                Log.d("myTag", "Light " + lxLight);
 
             }
             if (type == Sensor.TYPE_AMBIENT_TEMPERATURE){
@@ -126,8 +145,8 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
                 sensorsValues.put("temperature",temp.toString());
 
                 // Make sure we log
-                do_log = true;
-                Log.w("myTag", "Temp " + temp);
+                shouldLog = true;
+                Log.d("myTag", "Temp " + temp);
             }
             if (type == Sensor.TYPE_PROXIMITY){
                 // Get detect flag
@@ -137,8 +156,8 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
                 sensorsValues.put("proximity",proximity.toString());
 
                 // Make sure we log
-                do_log = true;
-                Log.w("myTag", "proximity " + proximity);
+                shouldLog = true;
+                Log.d("myTag", "proximity " + proximity);
             }
             if (type == Sensor.TYPE_STATIONARY_DETECT){
                 // Get detect flag
@@ -148,8 +167,8 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
                 sensorsValues.put("stationary_detect",stationary_detect.toString());
 
                 // Make sure we log
-                do_log = true;
-                Log.w("myTag", "stationary_detect " + stationary_detect);
+                shouldLog = true;
+                Log.d("myTag", "stationary_detect " + stationary_detect);
             }
             if (type == Sensor.TYPE_RELATIVE_HUMIDITY){
                 // Get detect flag
@@ -159,8 +178,8 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
                 sensorsValues.put("humidity",humidity.toString());
 
                 // Make sure we log
-                do_log = true;
-                Log.w("myTag", "humidity " + humidity);
+                shouldLog = true;
+                Log.d("myTag", "humidity " + humidity);
             }
             if (type == Sensor.TYPE_PRESSURE){
                 // Get detect flag
@@ -170,8 +189,8 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
                 sensorsValues.put("pressure",pressure.toString());
 
                 // Make sure we log
-                do_log = true;
-                Log.w("myTag", "pressure " + pressure);
+                shouldLog = true;
+                Log.d("myTag", "pressure " + pressure);
             }
             if (type == Sensor.TYPE_MOTION_DETECT){
                 // Get detect flag
@@ -181,8 +200,8 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
                 sensorsValues.put("motion_detect",motion_detect.toString());
 
                 // Make sure we log
-                do_log = true;
-                Log.w("myTag", "motion_detect " + motion_detect);
+                shouldLog = true;
+                Log.d("myTag", "motion_detect " + motion_detect);
             }
             if (type == Sensor.TYPE_HEART_RATE){
                 // Get detect flag
@@ -192,18 +211,17 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
                 sensorsValues.put("heart_rate",heart_rate.toString());
 
                 // Make sure we log
-                do_log = true;
-                Log.w("myTag", "heart_rate " + heart_rate);
+                shouldLog = true;
+                Log.d("myTag", "heart_rate " + heart_rate);
             }
         } catch (Exception e) {
             Log.d(TAG , "Error in sensor reading");
         }
 
         // Log
-        if (do_log) {
+        if (shouldLog) {
             logger.appendValues(sensorsValues);
         }
-
     }
 
 
@@ -225,7 +243,6 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
     private Sensor heart_rate;
 
     private void setUpSensors() {
-
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
 
         // Light sensor
@@ -278,7 +295,5 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
         // Heart Rate
         heart_rate = sensorManager.getDefaultSensor(Sensor.TYPE_HEART_RATE);
         sensorManager.registerListener(this, heart_rate, SensorManager.SENSOR_DELAY_NORMAL);
-
-
     }
 }

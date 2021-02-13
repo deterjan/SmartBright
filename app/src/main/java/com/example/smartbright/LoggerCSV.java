@@ -16,7 +16,12 @@ public class LoggerCSV implements Logger {
     public String FILENAME;
     private List<String> keys;
     private static FileOutputStream outputStream;
+
+    private Context context;
     final private static Object fileLock = new Object();
+
+    final private static int MAX_LINES = 10000;
+    private int lines;
 
     private static final byte[] SPACE  = " ".getBytes();
     private static final byte[] NEWLINE= "\n".getBytes();
@@ -26,6 +31,7 @@ public class LoggerCSV implements Logger {
         // Set the keys
         setKeys(keys);
 
+        this.context = c;
         // Create first file
         createFile(c);
     }
@@ -37,7 +43,7 @@ public class LoggerCSV implements Logger {
     public void createFile(Context c){
 
         // Set filename
-        FILENAME = "smartbright_" + new SimpleDateFormat("yyyy_MM_dd_HHmmss").format(new Date()) + ".log";
+        FILENAME = "smartbright_" + (System.currentTimeMillis()/1000L) + ".log";
 
         // Create file
         synchronized (fileLock) {
@@ -73,7 +79,6 @@ public class LoggerCSV implements Logger {
             try {
                 outputStream.write(line.toString().getBytes());
                 outputStream.write(NEWLINE);
-
             } catch (IOException ioe) {
                 Log.e(Definitions.TAG, "ERROR: Can't write header to file: " + ioe);
             }
@@ -82,7 +87,7 @@ public class LoggerCSV implements Logger {
     }
 
     // Close method
-    public void close(){
+    public void closeFile(){
         try {
             outputStream.close();
         } catch (IOException ioe){
@@ -107,8 +112,16 @@ public class LoggerCSV implements Logger {
 
         synchronized (fileLock){
             try {
+                if (lines >= MAX_LINES) {
+                    closeFile();
+                    FileUpload.uploadLog("/data/data/com.example.smartbright/files/"+FILENAME, FILENAME);
+                    createFile(context);
+                    lines = 0;
+                }
+
                 outputStream.write(line.toString().getBytes());
                 outputStream.write(NEWLINE);
+                lines++;
 
             } catch (IOException ioe) {
                 Log.e(Definitions.TAG, "ERROR: Can't write string to file: " + ioe);
