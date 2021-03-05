@@ -20,7 +20,7 @@ public class LoggerCSV implements Logger {
     private Context context;
     final private static Object fileLock = new Object();
 
-    final private static int MAX_LINES = 10000;
+    final private static int MAX_LINES = 500;
     private int lines;
 
     private static final byte[] SPACE  = " ".getBytes();

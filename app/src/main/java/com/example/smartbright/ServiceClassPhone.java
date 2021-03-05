@@ -1,7 +1,10 @@
 package com.example.smartbright;
 
 import android.annotation.TargetApi;
+import android.app.ActivityManager;
 import android.app.Service;
+import android.app.usage.UsageStats;
+import android.app.usage.UsageStatsManager;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
@@ -16,11 +19,19 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.provider.Settings;
 import android.util.Log;
+import android.view.WindowManager;
+import android.widget.Toast;
 
 import androidx.annotation.Nullable;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.SortedMap;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.TreeMap;
 
 import static com.example.smartbright.Definitions.TAG;
 
@@ -34,35 +45,66 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
     private ContentResolver contentResolver;
     private ContentObserver brightnessObserver;
 
+    Timer timer;
+
+    private int lastBrightness;
+
     @Override
     public void onCreate() {
         sensorsValues = new HashMap<String, String>();
         contentResolver = getContentResolver();
+        timer = new Timer();
 
         // Setup the sensors
         setUpSensors();
 
-        brightnessObserver = new ContentObserver(new Handler()) {
-            @Override
-            public void onChange(boolean selfChange) {
-                int brightness = Settings.System.getInt(contentResolver,Settings.System.SCREEN_BRIGHTNESS,0);
-                sensorsValues.put("screen_brightness", Integer.toString(brightness));
+        // Create log file
+        logger = new LoggerCSV(this, Definitions.sensorsLogged);
 
-                Log.d("myTag", "screen_brightness " + brightness);
-                logger.appendValues(sensorsValues);
-            }
-        };
         // put initial brightness value in map
         int brightness = Settings.System.getInt(contentResolver,Settings.System.SCREEN_BRIGHTNESS,0);
         sensorsValues.put("screen_brightness", Integer.toString(brightness));
         sensorsValues.put("user_changed_brightness", "1");
+        lastBrightness = brightness;
 
-        // Create log file
-        logger = new LoggerCSV(this, Definitions.sensorsLogged);
+        // observer for tracking changes to screen brightness
+        brightnessObserver = new ContentObserver(new Handler()) {
+            @Override
+            public void onChange(boolean selfChange) {
+                int brightness = Settings.System.getInt(contentResolver,
+                        Settings.System.SCREEN_BRIGHTNESS,0);
+                if (lastBrightness != brightness) {
+                    sensorsValues.put("screen_brightness", Integer.toString(brightness));
 
+                    Log.d("myTag", "screen_brightness " + brightness +
+                            " user changed? " + sensorsValues.get("user_changed_brightness"));
+                    logger.appendValues(sensorsValues);
+                    sensorsValues.put("user_changed_brightness", "1");
+                }
+               lastBrightness = brightness;
+            }
+        };
         contentResolver.registerContentObserver(
                 Settings.System.getUriFor(Settings.System.SCREEN_BRIGHTNESS),
-                false,brightnessObserver);
+                false, brightnessObserver);
+
+        // timer to do brightness inference task/request
+        timer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                int randomBrightness = (int) (Math.random() * (255 - 10 + 1) + 10);
+                Intent intent = new Intent("setBrightness");
+                intent.putExtra("brightness", randomBrightness);
+
+                LocalBroadcastManager.getInstance(ServiceClassPhone.this).sendBroadcast(intent);
+                sensorsValues.put("user_changed_brightness", "0");
+
+                // make request
+                // get result
+                // send intent to
+                // set userChangedBrightness to false
+            }
+        }, 3000,10000);
     }
 
     public class LocalBinder extends Binder {
@@ -84,8 +126,6 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
         Sensor sensor = event.sensor;
         int type = sensor.getType();
 
-        // Bool to assert that we made any change
-        // TODO maybe shouldnt log if we got the same reading as last time?
         boolean shouldLog = false;
 
         try {
@@ -220,6 +260,7 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
 
         // Log
         if (shouldLog) {
+            sensorsValues.put("foreground_app", getForegroundAppName());
             logger.appendValues(sensorsValues);
         }
     }
@@ -264,10 +305,6 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
         sensorsValues.put("gyro_y","");
         sensorsValues.put("gyro_z","");
 
-        // Setup brightness of the screen
-        //BrightnessObserver brightnessObserver = new BrightnessObserver();
-
-
         // Temperature
         temperature = sensorManager.getDefaultSensor(Sensor.TYPE_AMBIENT_TEMPERATURE);
         sensorManager.registerListener(this, temperature, SensorManager.SENSOR_DELAY_NORMAL);
@@ -296,4 +333,37 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
         heart_rate = sensorManager.getDefaultSensor(Sensor.TYPE_HEART_RATE);
         sensorManager.registerListener(this, heart_rate, SensorManager.SENSOR_DELAY_NORMAL);
     }
+
+    private String getForegroundAppName() {
+        String currentApp = "NULL";
+        if(android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            UsageStatsManager usm = (UsageStatsManager)this.getSystemService(Context.USAGE_STATS_SERVICE);
+            long time = System.currentTimeMillis();
+            List<UsageStats> appList = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY,  time - 1000*1000, time);
+            if (appList == null)
+                System.out.println("applist is null");
+            if (appList.size() == 0) {
+                // System.out.println(appList.get(0));
+                System.out.println("applist size is 0");
+            }
+            if (appList != null && appList.size() > 0) {
+                SortedMap<Long, UsageStats> mySortedMap = new TreeMap<Long, UsageStats>();
+                for (UsageStats usageStats : appList) {
+                    mySortedMap.put(usageStats.getLastTimeUsed(), usageStats);
+                }
+                if (mySortedMap != null && !mySortedMap.isEmpty()) {
+                    currentApp = mySortedMap.get(mySortedMap.lastKey()).getPackageName();
+                }
+            }
+        } else {
+            ActivityManager am = (ActivityManager)this.getSystemService(Context.ACTIVITY_SERVICE);
+            List<ActivityManager.RunningAppProcessInfo> tasks = am.getRunningAppProcesses();
+            currentApp = tasks.get(0).processName;
+        }
+
+        Log.e("adapter", "Current App in foreground is: " + currentApp);
+        return currentApp;
+    }
+
+
 }

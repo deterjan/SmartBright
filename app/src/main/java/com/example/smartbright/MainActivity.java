@@ -3,7 +3,9 @@ package com.example.smartbright;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
+import android.content.BroadcastReceiver;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.Manifest;
@@ -11,10 +13,13 @@ import android.app.AppOpsManager;
 import android.content.ComponentName;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 
@@ -36,6 +41,13 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.SeekBar;
+import android.widget.Toast;
+
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -43,8 +55,6 @@ public class MainActivity extends AppCompatActivity {
     final private static boolean DBG = Definitions.DBG;
     ServiceClassPhone myService;
     boolean mBound = false;
-
-    Random r;
 
     //Variable to store brightness value
     private int brightness;
@@ -62,15 +72,30 @@ public class MainActivity extends AppCompatActivity {
             myService = binder.getService();
             mBound = true;
         }
+
         @Override
         public void onServiceDisconnected(ComponentName arg0) {
             mBound = false;
         }
     };
 
+    private BroadcastReceiver mMessageReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            // Get extra data included in the Intent
+            int brightness = intent.getIntExtra("brightness", 50);
+            Settings.System.putInt(cResolver, Settings.System.SCREEN_BRIGHTNESS, brightness);
+            //Get the current window attributes
+            //  WindowManager.LayoutParams layoutpars = window.getAttributes();
+            //Set the brightness of this window
+            // layoutpars.screenBrightness = brightness / (float) 255;
+            //Apply attribute changes to this window
+            // window.setAttributes(layoutpars);
+        }
+    };
+
 
     // SeekBar to adjust brightness
-    SeekBar seekBar;
     Button button;
 
     @Override
@@ -80,16 +105,9 @@ public class MainActivity extends AppCompatActivity {
 
         // Get all permissions
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            Log.d(Definitions.TAG , "Getting all permissions");
+            Log.d(Definitions.TAG, "Getting all permissions");
             getAllPermissions();
         }
-
-        // Get seekBar ID
-        seekBar = findViewById(R.id.seekBar);
-
-        // Get button ID
-        button = findViewById(R.id.button);
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (!Settings.System.canWrite(getApplicationContext())) {
                 Intent intent = new Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + getPackageName()));
@@ -99,38 +117,41 @@ public class MainActivity extends AppCompatActivity {
 
         //Get the content resolver
         cResolver = getContentResolver();
-
         //Get the current window
         window = getWindow();
 
-        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean b) {
-                brightness = progress;
-                //Set the system brightness using the brightness variable value
-                Settings.System.putInt(cResolver, Settings.System.SCREEN_BRIGHTNESS, brightness);
-                //Get the current window attributes
-                WindowManager.LayoutParams layoutpars = window.getAttributes();
-                //Set the brightness of this window
-                layoutpars.screenBrightness = brightness / (float)255;
-                //Apply attribute changes to this window
-                window.setAttributes(layoutpars);
-            }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
-
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-
-            }
-        });
-
+        // Get button ID
+        button = findViewById(R.id.button);
         button.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                // Code here executes on main thread after user presses button
+                // TODO example http request, change
+
+                // Instantiate the RequestQueue.
+                RequestQueue queue = Volley.newRequestQueue(MainActivity.this);
+                String url = "https://run.mocky.io/v3/15e47c75-06e9-42de-b1e0-d02ace6e6085";
+
+                // Request a string response from the provided URL.
+                StringRequest stringRequest = new StringRequest(Request.Method.GET, url,
+                        response -> {
+                            // Display the first 500 characters of the response string.
+                            //Set the system brightness using the brightness variable value
+                            Settings.System.putInt(cResolver, Settings.System.SCREEN_BRIGHTNESS, Integer.parseInt(response));
+                            //Get the current window attributes
+                            WindowManager.LayoutParams layoutpars = window.getAttributes();
+                            //Set the brightness of this window
+                            layoutpars.screenBrightness = brightness / (float) 255;
+                            //Apply attribute changes to this window
+                            window.setAttributes(layoutpars);
+
+                            Toast.makeText(getApplicationContext(), "yey", Toast.LENGTH_LONG).show();
+                        },
+                        response -> {
+                            Toast.makeText(getApplicationContext(), "NOPOE", Toast.LENGTH_LONG).show();
+                        });
+
+                // Add the request to the RequestQueue.
+                queue.add(stringRequest);
+
             }
         });
 
@@ -138,11 +159,14 @@ public class MainActivity extends AppCompatActivity {
         Intent intent = new Intent(MainActivity.this, ServiceClassPhone.class);
         startService(intent); // it is needed since service should run after activity is destroyed.
         bindService(intent, connection, Context.BIND_AUTO_CREATE);
+
+        LocalBroadcastManager.getInstance(this)
+                .registerReceiver(mMessageReceiver, new IntentFilter("setBrightness"));
     }
 
     // PERMISSION METHODS
     @RequiresApi(api = Build.VERSION_CODES.R)
-    private void getAllPermissions(){
+    private void getAllPermissions() {
         List<String> permissionsNeeded = new ArrayList<>();
 
         final List<String> permissionsList = new ArrayList<String>();
@@ -168,7 +192,6 @@ public class MainActivity extends AppCompatActivity {
             permissionsNeeded.add("Write Settings");
         // if (!addPermission(permissionsList, Manifest.permission.DATA_USAGE))
         //     permissionsNeeded.add("Package Usage Stats");
-        getDeviceUniqueId();
 
         if (permissionsList.size() > 0) {
             if (permissionsNeeded.size() > 0) {
@@ -189,7 +212,6 @@ public class MainActivity extends AppCompatActivity {
                     REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS);
             return;
         }
-
     }
 
     private void showMessageOKCancel(String message, DialogInterface.OnClickListener okListener) {
@@ -212,13 +234,11 @@ public class MainActivity extends AppCompatActivity {
         return true;
     }
 
-
     @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         switch (requestCode) {
-            case REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS:
-            {
+            case REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS: {
                 Map<String, Integer> perms = new HashMap<String, Integer>();
                 // Initial
                 perms.put(Manifest.permission.SYSTEM_ALERT_WINDOW, PackageManager.PERMISSION_GRANTED);
@@ -237,7 +257,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
 
-                if(android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
                     boolean granted = false;
                     AppOpsManager appOps = (AppOpsManager) this.getSystemService(Context.APP_OPS_SERVICE);
                     int mode = appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS,
@@ -270,7 +290,7 @@ public class MainActivity extends AppCompatActivity {
                 // Check for ACCESS_FINE_LOCATION
                 if (Settings.canDrawOverlays(this)
                         && perms.get(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-                        && Settings.System.canWrite(getApplicationContext())){
+                        && Settings.System.canWrite(getApplicationContext())) {
                     // All Permissions Granted
                     DataHolder.getInstance().setVoicePermission(true);
 
@@ -280,24 +300,6 @@ public class MainActivity extends AppCompatActivity {
             break;
             default:
                 super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        }
-    }
-
-    private void getDeviceUniqueId(){
-        try{
-            //TelephonyManager tManager = (TelephonyManager)getSystemService(Context.TELEPHONY_SERVICE);
-            //String uid = tManager.getDeviceId();
-            SharedPreferences prefs;
-            prefs=this.getSharedPreferences(Definitions.DEVICE_UNIQUE_ID, Context.MODE_PRIVATE);
-            int unique_id = prefs.getInt(Definitions.DEVICE_ID, -1);
-            if (unique_id==-1){
-                r = new Random();
-                int ran = r.nextInt(10000 - 1) + 1;
-                prefs.edit().putInt(Definitions.DEVICE_ID , ran).commit();
-                if (DBG) Log.d(Definitions.TAG , "Device unique id is created: " + ran);
-            }
-        } catch (Exception e){
-            if (DBG) Log.d(Definitions.TAG , "Device unique id is not created: " + e);
         }
     }
 }

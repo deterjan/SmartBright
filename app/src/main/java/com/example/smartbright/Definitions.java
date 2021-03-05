@@ -17,6 +17,6 @@ public class Definitions {
                     "gyro_x","gyro_y","gyro_z",
                     "temperature","pressure","humidity","heart_rate",
                     "stationary_detect","proximity","motion_detect",
-                    "screen_brightness","user_changed_brightness"));
+                    "screen_brightness","user_changed_brightness","foreground_app"));
 
 }

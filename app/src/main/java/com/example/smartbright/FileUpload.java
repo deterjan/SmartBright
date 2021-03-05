@@ -1,6 +1,9 @@
 package com.example.smartbright;
 
+import android.app.Activity;
+import android.app.Application;
 import android.net.Uri;
+import android.provider.Settings;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -15,14 +18,17 @@ import com.google.firebase.storage.UploadTask;
 import java.io.File;
 
 import static com.example.smartbright.Definitions.TAG;
+import static java.security.AccessController.getContext;
 
 public class FileUpload {
     private static FirebaseStorage storage = FirebaseStorage.getInstance();
     private static StorageReference rootStorageRef = storage.getReference();
-    private static StorageMetadata metadata;
+
+    // TODO get actual unique device id somehow
+    private static final String uniqueID = "TEST_ID";
 
     public static void uploadLog(String filepath, String filename) {
-        StorageReference logStorageRef = rootStorageRef.child("logs").child(filename);
+        StorageReference logStorageRef = rootStorageRef.child("logs").child(uniqueID).child(filename);
 
         Uri file = Uri.fromFile(new File(filepath));
         UploadTask uploadTask = logStorageRef.putFile(file);
@@ -41,6 +47,4 @@ public class FileUpload {
             }
         });
     }
-
-
 }
