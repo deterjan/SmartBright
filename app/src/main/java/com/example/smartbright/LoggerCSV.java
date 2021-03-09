@@ -41,7 +41,6 @@ public class LoggerCSV implements Logger {
     }
 
     public void createFile(Context c){
-
         // Set filename
         FILENAME = "smartbright_" + (System.currentTimeMillis()/1000L) + ".log";
 
@@ -50,18 +49,57 @@ public class LoggerCSV implements Logger {
             try {
                 outputStream = c.openFileOutput(FILENAME, Context.MODE_APPEND);
                 appendHeader();
-
                 Log.d(Definitions.TAG, "Log File:" + FILENAME + " created");
             } catch (Exception e) {
                 Log.e(Definitions.TAG, "Can't open file " + FILENAME + ":" + e);
+            }
+        }
+    }
 
+    public void appendHeader(){
+        synchronized (fileLock){
+            try {
+                outputStream.write(getHeader().getBytes());
+                outputStream.write(NEWLINE);
+            } catch (IOException ioe) {
+                Log.e(Definitions.TAG, "ERROR: Can't write header to file: " + ioe);
+            }
+        }
+    }
+
+    // Close method
+    public void appendValues(Map<String, String> values) {
+        synchronized (fileLock){
+            try {
+                if (lines >= MAX_LINES) {
+                    closeFile();
+                    FileUpload.uploadLog(
+                            "/data/data/com.example.smartbright/files/"+FILENAME, FILENAME);
+                    createFile(context);
+                    lines = 0;
+                }
+
+                outputStream.write(getLine(values).getBytes());
+                outputStream.write(NEWLINE);
+                lines++;
+
+            } catch (IOException ioe) {
+                Log.e(Definitions.TAG, "ERROR: Can't write string to file: " + ioe);
             }
         }
 
     }
 
-    public void appendHeader(){
+    public void closeFile(){
+        try {
+            outputStream.close();
+        } catch (IOException ioe){
+            Log.e(Definitions.TAG, "Can't close file " + FILENAME + ":" + ioe);
+        }
+    }
 
+    @Override
+    public String getHeader() {
         // Init line
         StringBuilder line = new StringBuilder();
 
@@ -75,29 +113,11 @@ public class LoggerCSV implements Logger {
         // Delete last comma
         line.deleteCharAt(line.length()-1);
 
-        synchronized (fileLock){
-            try {
-                outputStream.write(line.toString().getBytes());
-                outputStream.write(NEWLINE);
-            } catch (IOException ioe) {
-                Log.e(Definitions.TAG, "ERROR: Can't write header to file: " + ioe);
-            }
-        }
-
+        return line.toString();
     }
 
-    // Close method
-    public void closeFile(){
-        try {
-            outputStream.close();
-        } catch (IOException ioe){
-            Log.e(Definitions.TAG, "Can't close file " + FILENAME + ":" + ioe);
-        }
-    }
-
-
-    public void appendValues(Map<String, String> values) {
-        // Init line
+    @Override
+    public String getLine(Map<String, String> values) {
         StringBuilder line = new StringBuilder();
 
         line.append(getTime());
@@ -110,24 +130,7 @@ public class LoggerCSV implements Logger {
         // Delete last comma
         line.deleteCharAt(line.length()-1);
 
-        synchronized (fileLock){
-            try {
-                if (lines >= MAX_LINES) {
-                    closeFile();
-                    FileUpload.uploadLog("/data/data/com.example.smartbright/files/"+FILENAME, FILENAME);
-                    createFile(context);
-                    lines = 0;
-                }
-
-                outputStream.write(line.toString().getBytes());
-                outputStream.write(NEWLINE);
-                lines++;
-
-            } catch (IOException ioe) {
-                Log.e(Definitions.TAG, "ERROR: Can't write string to file: " + ioe);
-            }
-        }
-
+        return line.toString();
     }
 
     @Override

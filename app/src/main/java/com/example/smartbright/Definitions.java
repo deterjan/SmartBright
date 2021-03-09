@@ -8,8 +8,9 @@ public class Definitions {
 
     final public static String TAG = "SmartBrightMainActivity";
     final static public boolean DBG = true;
-    final static public String DEVICE_UNIQUE_ID = "DEVICE_UNIQUE_ID";
-    final static public String DEVICE_ID = "DEVICE_ID";
+    final static public String DEVICE_ID = "TEST_ID";
+
+    final static public String PREDICT_URL = "http://picard.ece.northwestern.edu:5000/predict/";
 
     // Sensors being logged
     final static public List<String> sensorsLogged =

@@ -12,4 +12,7 @@ public interface Logger {
     public void createFile(Context c);
     public void closeFile();
 
+    public String getHeader();
+    public String getLine(Map<String, String> values);
+
 }

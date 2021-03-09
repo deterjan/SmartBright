@@ -19,11 +19,19 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.provider.Settings;
 import android.util.Log;
-import android.view.WindowManager;
-import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.Volley;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.util.HashMap;
 import java.util.List;
@@ -35,25 +43,23 @@ import java.util.TreeMap;
 
 import static com.example.smartbright.Definitions.TAG;
 
+// TODO fix log statements
+
 @TargetApi(Build.VERSION_CODES.R)
 public class ServiceClassPhone extends Service implements SensorEventListener {
+    private Logger logger; // logger object
+    private Map<String, String> sensorsValues; // sensor values map for logging
+    private int lastBrightness; // keep last brightness to fix brightnessObserver bug
 
-    // Declare vars
-    Logger logger;
-    private Map<String, String> sensorsValues;
     private final IBinder mBinder = new LocalBinder();
     private ContentResolver contentResolver;
-    private ContentObserver brightnessObserver;
 
-    Timer timer;
-
-    private int lastBrightness;
+    public static boolean shouldMakeRequests = false;
 
     @Override
     public void onCreate() {
         sensorsValues = new HashMap<String, String>();
         contentResolver = getContentResolver();
-        timer = new Timer();
 
         // Setup the sensors
         setUpSensors();
@@ -62,17 +68,17 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
         logger = new LoggerCSV(this, Definitions.sensorsLogged);
 
         // put initial brightness value in map
-        int brightness = Settings.System.getInt(contentResolver,Settings.System.SCREEN_BRIGHTNESS,0);
+        int brightness = Settings.System.getInt(contentResolver, Settings.System.SCREEN_BRIGHTNESS, 0);
         sensorsValues.put("screen_brightness", Integer.toString(brightness));
         sensorsValues.put("user_changed_brightness", "1");
         lastBrightness = brightness;
 
         // observer for tracking changes to screen brightness
-        brightnessObserver = new ContentObserver(new Handler()) {
+        ContentObserver brightnessObserver = new ContentObserver(new Handler()) {
             @Override
             public void onChange(boolean selfChange) {
                 int brightness = Settings.System.getInt(contentResolver,
-                        Settings.System.SCREEN_BRIGHTNESS,0);
+                        Settings.System.SCREEN_BRIGHTNESS, 0);
                 if (lastBrightness != brightness) {
                     sensorsValues.put("screen_brightness", Integer.toString(brightness));
 
@@ -81,7 +87,7 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
                     logger.appendValues(sensorsValues);
                     sensorsValues.put("user_changed_brightness", "1");
                 }
-               lastBrightness = brightness;
+                lastBrightness = brightness;
             }
         };
         contentResolver.registerContentObserver(
@@ -89,22 +95,58 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
                 false, brightnessObserver);
 
         // timer to do brightness inference task/request
+        Timer timer = new Timer();
         timer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
-                int randomBrightness = (int) (Math.random() * (255 - 10 + 1) + 10);
-                Intent intent = new Intent("setBrightness");
-                intent.putExtra("brightness", randomBrightness);
-
-                LocalBroadcastManager.getInstance(ServiceClassPhone.this).sendBroadcast(intent);
-                sensorsValues.put("user_changed_brightness", "0");
-
-                // make request
-                // get result
-                // send intent to
-                // set userChangedBrightness to false
+                if (shouldMakeRequests) {
+                    makePredictionRequestToServer();
+                }
             }
-        }, 3000,10000);
+        }, 3000, 10000);
+    }
+
+    private void makePredictionRequestToServer() {
+        RequestQueue queue = Volley.newRequestQueue(ServiceClassPhone.this);
+        JSONObject jsonBody = new JSONObject();
+        try {
+            String header = logger.getHeader();
+            jsonBody.put("header", header);
+            String values = logger.getLine(sensorsValues);
+            jsonBody.put("observations", values);
+        } catch (JSONException e) {
+            Log.d("PLS", e.toString());
+        }
+
+        final String url = Definitions.PREDICT_URL + Definitions.DEVICE_ID;
+        JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.POST,
+                url,
+                jsonBody,
+                new Response.Listener<JSONObject>() {
+            @Override
+            public void onResponse(JSONObject response) {
+                try{
+                    int prediction = response.getInt("prediction");
+                    broadcastSetBrightnessIntent(prediction);
+                } catch (JSONException e) {
+                    Log.d("PLS", e.toString());
+                }
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError e) {
+                Log.d("PLS", e.toString());
+                Log.d("PLS", url);
+            }
+        });
+        queue.add(jsonObjectRequest);
+    }
+
+    private void broadcastSetBrightnessIntent(int prediction) {
+        Intent intent = new Intent("setBrightness");
+        intent.putExtra("brightness", prediction);
+        LocalBroadcastManager.getInstance(ServiceClassPhone.this).sendBroadcast(intent);
+        sensorsValues.put("user_changed_brightness", "0");
     }
 
     public class LocalBinder extends Binder {
@@ -129,7 +171,7 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
         boolean shouldLog = false;
 
         try {
-            if (type == Sensor.TYPE_GYROSCOPE){
+            if (type == Sensor.TYPE_GYROSCOPE) {
 
                 // Get vals
                 Float gyro_x = event.values[0];
@@ -137,9 +179,9 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
                 Float gyro_z = event.values[2];
 
                 // Change hashmap to be printed to log
-                sensorsValues.put("gyro_x",gyro_x.toString());
-                sensorsValues.put("gyro_y",gyro_y.toString());
-                sensorsValues.put("gyro_z",gyro_z.toString());
+                sensorsValues.put("gyro_x", gyro_x.toString());
+                sensorsValues.put("gyro_y", gyro_y.toString());
+                sensorsValues.put("gyro_z", gyro_z.toString());
 
                 // Make sure we log
                 shouldLog = true;
@@ -154,108 +196,108 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
                 Float acc_z = event.values[2];
 
                 // Change hashmap to be printed to log
-                sensorsValues.put("acc_x",acc_x.toString());
-                sensorsValues.put("acc_y",acc_y.toString());
-                sensorsValues.put("acc_z",acc_z.toString());
+                sensorsValues.put("acc_x", acc_x.toString());
+                sensorsValues.put("acc_y", acc_y.toString());
+                sensorsValues.put("acc_z", acc_z.toString());
 
                 // Make sure we log
                 shouldLog = true;
                 Log.d("myTag", "acc_x " + acc_x + " acc_y " + acc_y + " acc_z " + acc_z);
 
             }
-            if (type == Sensor.TYPE_LIGHT){
+            if (type == Sensor.TYPE_LIGHT) {
 
                 // Get lxlight value
                 Float lxLight = event.values[0];
 
                 // change Hashmap to be printed
-                sensorsValues.put("ambient_light",lxLight.toString());
+                sensorsValues.put("ambient_light", lxLight.toString());
 
                 // Make sure we log
                 shouldLog = true;
                 Log.d("myTag", "Light " + lxLight);
 
             }
-            if (type == Sensor.TYPE_AMBIENT_TEMPERATURE){
+            if (type == Sensor.TYPE_AMBIENT_TEMPERATURE) {
 
                 // Get temperature
                 Float temp = event.values[0];
 
                 // change Hashmap to be printed
-                sensorsValues.put("temperature",temp.toString());
+                sensorsValues.put("temperature", temp.toString());
 
                 // Make sure we log
                 shouldLog = true;
                 Log.d("myTag", "Temp " + temp);
             }
-            if (type == Sensor.TYPE_PROXIMITY){
+            if (type == Sensor.TYPE_PROXIMITY) {
                 // Get detect flag
                 Float proximity = event.values[0];
 
                 // change Hashmap to be printed
-                sensorsValues.put("proximity",proximity.toString());
+                sensorsValues.put("proximity", proximity.toString());
 
                 // Make sure we log
                 shouldLog = true;
                 Log.d("myTag", "proximity " + proximity);
             }
-            if (type == Sensor.TYPE_STATIONARY_DETECT){
+            if (type == Sensor.TYPE_STATIONARY_DETECT) {
                 // Get detect flag
                 Float stationary_detect = event.values[0];
 
                 // change Hashmap to be printed
-                sensorsValues.put("stationary_detect",stationary_detect.toString());
+                sensorsValues.put("stationary_detect", stationary_detect.toString());
 
                 // Make sure we log
                 shouldLog = true;
                 Log.d("myTag", "stationary_detect " + stationary_detect);
             }
-            if (type == Sensor.TYPE_RELATIVE_HUMIDITY){
+            if (type == Sensor.TYPE_RELATIVE_HUMIDITY) {
                 // Get detect flag
                 Float humidity = event.values[0];
 
                 // change Hashmap to be printed
-                sensorsValues.put("humidity",humidity.toString());
+                sensorsValues.put("humidity", humidity.toString());
 
                 // Make sure we log
                 shouldLog = true;
                 Log.d("myTag", "humidity " + humidity);
             }
-            if (type == Sensor.TYPE_PRESSURE){
+            if (type == Sensor.TYPE_PRESSURE) {
                 // Get detect flag
                 Float pressure = event.values[0];
 
                 // change Hashmap to be printed
-                sensorsValues.put("pressure",pressure.toString());
+                sensorsValues.put("pressure", pressure.toString());
 
                 // Make sure we log
                 shouldLog = true;
                 Log.d("myTag", "pressure " + pressure);
             }
-            if (type == Sensor.TYPE_MOTION_DETECT){
+            if (type == Sensor.TYPE_MOTION_DETECT) {
                 // Get detect flag
                 Float motion_detect = event.values[0];
 
                 // change Hashmap to be printed
-                sensorsValues.put("motion_detect",motion_detect.toString());
+                sensorsValues.put("motion_detect", motion_detect.toString());
 
                 // Make sure we log
                 shouldLog = true;
                 Log.d("myTag", "motion_detect " + motion_detect);
             }
-            if (type == Sensor.TYPE_HEART_RATE){
+            if (type == Sensor.TYPE_HEART_RATE) {
                 // Get detect flag
                 Float heart_rate = event.values[0];
 
                 // change Hashmap to be printed
-                sensorsValues.put("heart_rate",heart_rate.toString());
+                sensorsValues.put("heart_rate", heart_rate.toString());
 
                 // Make sure we log
                 shouldLog = true;
                 Log.d("myTag", "heart_rate " + heart_rate);
             }
         } catch (Exception e) {
-            Log.d(TAG , "Error in sensor reading");
+            Log.d(TAG, "Error in sensor reading");
         }
 
         // Log
@@ -289,21 +331,21 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
         // Light sensor
         light = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT);
         sensorManager.registerListener(this, light, SensorManager.SENSOR_DELAY_NORMAL);
-        sensorsValues.put("ambient_light","");
+        sensorsValues.put("ambient_light", "");
 
         // Accelerometer
         acceleration = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         sensorManager.registerListener(this, acceleration, SensorManager.SENSOR_DELAY_NORMAL);
-        sensorsValues.put("acc_x","");
-        sensorsValues.put("acc_y","");
-        sensorsValues.put("acc_z","");
+        sensorsValues.put("acc_x", "");
+        sensorsValues.put("acc_y", "");
+        sensorsValues.put("acc_z", "");
 
         // gyroscope
         gyro = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
         sensorManager.registerListener(this, gyro, SensorManager.SENSOR_DELAY_NORMAL);
-        sensorsValues.put("gyro_x","");
-        sensorsValues.put("gyro_y","");
-        sensorsValues.put("gyro_z","");
+        sensorsValues.put("gyro_x", "");
+        sensorsValues.put("gyro_y", "");
+        sensorsValues.put("gyro_z", "");
 
         // Temperature
         temperature = sensorManager.getDefaultSensor(Sensor.TYPE_AMBIENT_TEMPERATURE);
@@ -336,10 +378,10 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
 
     private String getForegroundAppName() {
         String currentApp = "NULL";
-        if(android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-            UsageStatsManager usm = (UsageStatsManager)this.getSystemService(Context.USAGE_STATS_SERVICE);
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            UsageStatsManager usm = (UsageStatsManager) this.getSystemService(Context.USAGE_STATS_SERVICE);
             long time = System.currentTimeMillis();
-            List<UsageStats> appList = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY,  time - 1000*1000, time);
+            List<UsageStats> appList = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, time - 1000 * 1000, time);
             if (appList == null)
                 System.out.println("applist is null");
             if (appList.size() == 0) {
@@ -356,7 +398,7 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
                 }
             }
         } else {
-            ActivityManager am = (ActivityManager)this.getSystemService(Context.ACTIVITY_SERVICE);
+            ActivityManager am = (ActivityManager) this.getSystemService(Context.ACTIVITY_SERVICE);
             List<ActivityManager.RunningAppProcessInfo> tasks = am.getRunningAppProcesses();
             currentApp = tasks.get(0).processName;
         }

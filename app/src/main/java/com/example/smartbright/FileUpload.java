@@ -25,7 +25,7 @@ public class FileUpload {
     private static StorageReference rootStorageRef = storage.getReference();
 
     // TODO get actual unique device id somehow
-    private static final String uniqueID = "TEST_ID";
+    private static final String uniqueID = Definitions.DEVICE_ID;
 
     public static void uploadLog(String filepath, String filename) {
         StorageReference logStorageRef = rootStorageRef.child("logs").child(uniqueID).child(filename);

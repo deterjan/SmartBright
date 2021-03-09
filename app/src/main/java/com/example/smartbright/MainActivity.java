@@ -40,7 +40,9 @@ import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.CompoundButton;
 import android.widget.SeekBar;
+import android.widget.Switch;
 import android.widget.Toast;
 
 import com.android.volley.Request;
@@ -79,12 +81,13 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    private BroadcastReceiver mMessageReceiver = new BroadcastReceiver() {
+    private final BroadcastReceiver mMessageReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             // Get extra data included in the Intent
             int brightness = intent.getIntExtra("brightness", 50);
             Settings.System.putInt(cResolver, Settings.System.SCREEN_BRIGHTNESS, brightness);
+            // TODO are these required to change brightness??
             //Get the current window attributes
             //  WindowManager.LayoutParams layoutpars = window.getAttributes();
             //Set the brightness of this window
@@ -93,10 +96,6 @@ public class MainActivity extends AppCompatActivity {
             // window.setAttributes(layoutpars);
         }
     };
-
-
-    // SeekBar to adjust brightness
-    Button button;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -120,41 +119,6 @@ public class MainActivity extends AppCompatActivity {
         //Get the current window
         window = getWindow();
 
-        // Get button ID
-        button = findViewById(R.id.button);
-        button.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                // TODO example http request, change
-
-                // Instantiate the RequestQueue.
-                RequestQueue queue = Volley.newRequestQueue(MainActivity.this);
-                String url = "https://run.mocky.io/v3/15e47c75-06e9-42de-b1e0-d02ace6e6085";
-
-                // Request a string response from the provided URL.
-                StringRequest stringRequest = new StringRequest(Request.Method.GET, url,
-                        response -> {
-                            // Display the first 500 characters of the response string.
-                            //Set the system brightness using the brightness variable value
-                            Settings.System.putInt(cResolver, Settings.System.SCREEN_BRIGHTNESS, Integer.parseInt(response));
-                            //Get the current window attributes
-                            WindowManager.LayoutParams layoutpars = window.getAttributes();
-                            //Set the brightness of this window
-                            layoutpars.screenBrightness = brightness / (float) 255;
-                            //Apply attribute changes to this window
-                            window.setAttributes(layoutpars);
-
-                            Toast.makeText(getApplicationContext(), "yey", Toast.LENGTH_LONG).show();
-                        },
-                        response -> {
-                            Toast.makeText(getApplicationContext(), "NOPOE", Toast.LENGTH_LONG).show();
-                        });
-
-                // Add the request to the RequestQueue.
-                queue.add(stringRequest);
-
-            }
-        });
-
         // Start application
         Intent intent = new Intent(MainActivity.this, ServiceClassPhone.class);
         startService(intent); // it is needed since service should run after activity is destroyed.
@@ -162,6 +126,17 @@ public class MainActivity extends AppCompatActivity {
 
         LocalBroadcastManager.getInstance(this)
                 .registerReceiver(mMessageReceiver, new IntentFilter("setBrightness"));
+
+        Switch sw = findViewById(R.id.switch1);
+        sw.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                if (isChecked) {
+                    ServiceClassPhone.shouldMakeRequests = true;
+                } else {
+                    ServiceClassPhone.shouldMakeRequests = false;
+                }
+            }
+        });
     }
 
     // PERMISSION METHODS
