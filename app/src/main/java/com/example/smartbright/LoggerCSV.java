@@ -10,7 +10,10 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
+import static com.example.smartbright.Definitions.DBG;
+
 public class LoggerCSV implements Logger {
+    private static final String TAG = LoggerCSV.class.getSimpleName();
 
     // Vars
     public String FILENAME;
@@ -20,7 +23,7 @@ public class LoggerCSV implements Logger {
     private Context context;
     final private static Object fileLock = new Object();
 
-    final private static int MAX_LINES = 500;
+    final private static int LOG_MAX_LINES = 100;
     private int lines;
 
     private static final byte[] SPACE  = " ".getBytes();
@@ -49,9 +52,9 @@ public class LoggerCSV implements Logger {
             try {
                 outputStream = c.openFileOutput(FILENAME, Context.MODE_APPEND);
                 appendHeader();
-                Log.d(Definitions.TAG, "Log File:" + FILENAME + " created");
+                if (DBG) Log.d(TAG, "Log File:" + FILENAME + " created");
             } catch (Exception e) {
-                Log.e(Definitions.TAG, "Can't open file " + FILENAME + ":" + e);
+                if (DBG) Log.e(TAG, "Can't open file " + FILENAME + ":" + e);
             }
         }
     }
@@ -62,7 +65,7 @@ public class LoggerCSV implements Logger {
                 outputStream.write(getHeader().getBytes());
                 outputStream.write(NEWLINE);
             } catch (IOException ioe) {
-                Log.e(Definitions.TAG, "ERROR: Can't write header to file: " + ioe);
+                if (DBG) Log.e(TAG, "ERROR: Can't write header to file: " + ioe);
             }
         }
     }
@@ -71,7 +74,7 @@ public class LoggerCSV implements Logger {
     public void appendValues(Map<String, String> values) {
         synchronized (fileLock){
             try {
-                if (lines >= MAX_LINES) {
+                if (lines >= LOG_MAX_LINES) {
                     closeFile();
                     FileUpload.uploadLog(
                             "/data/data/com.example.smartbright/files/"+FILENAME, FILENAME);
@@ -84,7 +87,7 @@ public class LoggerCSV implements Logger {
                 lines++;
 
             } catch (IOException ioe) {
-                Log.e(Definitions.TAG, "ERROR: Can't write string to file: " + ioe);
+                if (DBG) Log.e(TAG, "ERROR: Can't write string to file: " + ioe);
             }
         }
 
@@ -94,7 +97,7 @@ public class LoggerCSV implements Logger {
         try {
             outputStream.close();
         } catch (IOException ioe){
-            Log.e(Definitions.TAG, "Can't close file " + FILENAME + ":" + ioe);
+            if (DBG) Log.e(TAG, "Can't close file " + FILENAME + ":" + ioe);
         }
     }
 

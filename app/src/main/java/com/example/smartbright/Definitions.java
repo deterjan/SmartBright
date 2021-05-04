@@ -5,10 +5,7 @@ import java.util.Arrays;
 import java.util.List;
 
 public class Definitions {
-
-    final public static String TAG = "SmartBrightMainActivity";
     final static public boolean DBG = true;
-    final static public String DEVICE_ID = "TEST_ID";
 
     final static public String PREDICT_URL = "http://picard.ece.northwestern.edu:5000/predict/";
 

@@ -2,6 +2,10 @@ package com.example.smartbright;
 
 import android.annotation.TargetApi;
 import android.app.ActivityManager;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.app.usage.UsageStats;
 import android.app.usage.UsageStatsManager;
@@ -21,6 +25,8 @@ import android.provider.Settings;
 import android.util.Log;
 
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
+import androidx.core.app.NotificationCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.android.volley.Request;
@@ -41,12 +47,14 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.TreeMap;
 
-import static com.example.smartbright.Definitions.TAG;
-
-// TODO fix log statements
+import static com.example.smartbright.Definitions.DBG;
 
 @TargetApi(Build.VERSION_CODES.R)
 public class ServiceClassPhone extends Service implements SensorEventListener {
+
+    public static final String CHANNEL_ID = "ForegroundServiceChannel";
+    private static final String TAG = ServiceClassPhone.class.getSimpleName();
+
     private Logger logger; // logger object
     private Map<String, String> sensorsValues; // sensor values map for logging
     private int lastBrightness; // keep last brightness to fix brightnessObserver bug
@@ -58,7 +66,7 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
 
     @Override
     public void onCreate() {
-        sensorsValues = new HashMap<String, String>();
+        sensorsValues = new HashMap<>();
         contentResolver = getContentResolver();
 
         // Setup the sensors
@@ -82,7 +90,7 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
                 if (lastBrightness != brightness) {
                     sensorsValues.put("screen_brightness", Integer.toString(brightness));
 
-                    Log.d("myTag", "screen_brightness " + brightness +
+                    if (DBG) Log.v(TAG, "screen_brightness " + brightness +
                             " user changed? " + sensorsValues.get("user_changed_brightness"));
                     logger.appendValues(sensorsValues);
                     sensorsValues.put("user_changed_brightness", "1");
@@ -106,6 +114,45 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
         }, 3000, 10000);
     }
 
+
+    @RequiresApi(api = 26)
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        String input = intent.getStringExtra("inputExtra");
+        createNotificationChannel();
+        Intent notificationIntent = new Intent(this, MainActivity.class);
+        PendingIntent pendingIntent = PendingIntent.getActivity(this,
+                0, notificationIntent, 0);
+
+        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle("NU Brightness Study")
+                .setContentText(input)
+                .setSmallIcon(R.drawable.nu_icon_two)
+                .setContentIntent(pendingIntent)
+                .build();
+
+        startForeground(1, notification);
+
+        return START_REDELIVER_INTENT;
+    }
+    @RequiresApi(api = 26)
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel serviceChannel = new NotificationChannel(
+                    CHANNEL_ID,
+                    "Foreground Service Channel",
+                    NotificationManager.IMPORTANCE_DEFAULT
+            );
+
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            manager.createNotificationChannel(serviceChannel);
+        }
+    }
+    // end tod
+
+
+
+
     private void makePredictionRequestToServer() {
         RequestQueue queue = Volley.newRequestQueue(ServiceClassPhone.this);
         JSONObject jsonBody = new JSONObject();
@@ -115,10 +162,10 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
             String values = logger.getLine(sensorsValues);
             jsonBody.put("observations", values);
         } catch (JSONException e) {
-            Log.d("PLS", e.toString());
+            if (DBG) Log.e(TAG, e.toString());
         }
 
-        final String url = Definitions.PREDICT_URL + Definitions.DEVICE_ID;
+        final String url = Definitions.PREDICT_URL + UniqueIDManager.getID();
         JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.POST,
                 url,
                 jsonBody,
@@ -129,14 +176,14 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
                     int prediction = response.getInt("prediction");
                     broadcastSetBrightnessIntent(prediction);
                 } catch (JSONException e) {
-                    Log.d("PLS", e.toString());
+                    if (DBG) Log.e(TAG, e.toString());
                 }
             }
         }, new Response.ErrorListener() {
             @Override
             public void onErrorResponse(VolleyError e) {
-                Log.d("PLS", e.toString());
-                Log.d("PLS", url);
+                if (DBG) Log.e(TAG, e.toString());
+                if (DBG) Log.e(TAG, url);
             }
         });
         queue.add(jsonObjectRequest);
@@ -185,7 +232,7 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
 
                 // Make sure we log
                 shouldLog = true;
-                Log.d("myTag", "gyro_x " + gyro_x + " gyro_y " + gyro_y + " gyro_z " + gyro_z);
+                if (DBG) Log.v(TAG, "gyro_x " + gyro_x + " gyro_y " + gyro_y + " gyro_z " + gyro_z);
 
             }
             if (type == Sensor.TYPE_ACCELEROMETER) {
@@ -202,7 +249,7 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
 
                 // Make sure we log
                 shouldLog = true;
-                Log.d("myTag", "acc_x " + acc_x + " acc_y " + acc_y + " acc_z " + acc_z);
+                if (DBG) Log.v(TAG, "acc_x " + acc_x + " acc_y " + acc_y + " acc_z " + acc_z);
 
             }
             if (type == Sensor.TYPE_LIGHT) {
@@ -215,7 +262,7 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
 
                 // Make sure we log
                 shouldLog = true;
-                Log.d("myTag", "Light " + lxLight);
+                if (DBG) Log.v(TAG, "Light " + lxLight);
 
             }
             if (type == Sensor.TYPE_AMBIENT_TEMPERATURE) {
@@ -228,7 +275,7 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
 
                 // Make sure we log
                 shouldLog = true;
-                Log.d("myTag", "Temp " + temp);
+                if (DBG) Log.v(TAG, "Temp " + temp);
             }
             if (type == Sensor.TYPE_PROXIMITY) {
                 // Get detect flag
@@ -239,7 +286,7 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
 
                 // Make sure we log
                 shouldLog = true;
-                Log.d("myTag", "proximity " + proximity);
+                if (DBG) Log.v(TAG, "proximity " + proximity);
             }
             if (type == Sensor.TYPE_STATIONARY_DETECT) {
                 // Get detect flag
@@ -250,7 +297,7 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
 
                 // Make sure we log
                 shouldLog = true;
-                Log.d("myTag", "stationary_detect " + stationary_detect);
+                if (DBG) Log.v(TAG, "stationary_detect " + stationary_detect);
             }
             if (type == Sensor.TYPE_RELATIVE_HUMIDITY) {
                 // Get detect flag
@@ -261,7 +308,7 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
 
                 // Make sure we log
                 shouldLog = true;
-                Log.d("myTag", "humidity " + humidity);
+                if (DBG) Log.v(TAG, "humidity " + humidity);
             }
             if (type == Sensor.TYPE_PRESSURE) {
                 // Get detect flag
@@ -272,7 +319,7 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
 
                 // Make sure we log
                 shouldLog = true;
-                Log.d("myTag", "pressure " + pressure);
+                if (DBG) Log.v(TAG, "pressure " + pressure);
             }
             if (type == Sensor.TYPE_MOTION_DETECT) {
                 // Get detect flag
@@ -283,7 +330,7 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
 
                 // Make sure we log
                 shouldLog = true;
-                Log.d("myTag", "motion_detect " + motion_detect);
+                if (DBG) Log.v(TAG, "motion_detect " + motion_detect);
             }
             if (type == Sensor.TYPE_HEART_RATE) {
                 // Get detect flag
@@ -294,10 +341,10 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
 
                 // Make sure we log
                 shouldLog = true;
-                Log.d("myTag", "heart_rate " + heart_rate);
+                if (DBG) Log.v(TAG, "heart_rate " + heart_rate);
             }
         } catch (Exception e) {
-            Log.d(TAG, "Error in sensor reading");
+            if (DBG) Log.e(TAG, "Error in sensor reading");
         }
 
         // Log
@@ -377,6 +424,7 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
     }
 
     private String getForegroundAppName() {
+        // TODO user needs to enable "USAGE DATA ACCESS" for smartbright
         String currentApp = "NULL";
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
             UsageStatsManager usm = (UsageStatsManager) this.getSystemService(Context.USAGE_STATS_SERVICE);
@@ -403,7 +451,7 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
             currentApp = tasks.get(0).processName;
         }
 
-        Log.e("adapter", "Current App in foreground is: " + currentApp);
+        if (DBG) Log.v(TAG, "Current App in foreground is: " + currentApp);
         return currentApp;
     }
 

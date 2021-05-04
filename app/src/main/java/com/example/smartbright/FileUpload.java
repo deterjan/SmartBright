@@ -1,9 +1,6 @@
 package com.example.smartbright;
 
-import android.app.Activity;
-import android.app.Application;
 import android.net.Uri;
-import android.provider.Settings;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -11,39 +8,39 @@ import androidx.annotation.NonNull;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.storage.FirebaseStorage;
-import com.google.firebase.storage.StorageMetadata;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 
 import java.io.File;
 
-import static com.example.smartbright.Definitions.TAG;
-import static java.security.AccessController.getContext;
+import static com.example.smartbright.Definitions.DBG;
 
 public class FileUpload {
-    private static FirebaseStorage storage = FirebaseStorage.getInstance();
-    private static StorageReference rootStorageRef = storage.getReference();
+    private static final String TAG = FileUpload.class.getSimpleName();
 
-    // TODO get actual unique device id somehow
-    private static final String uniqueID = Definitions.DEVICE_ID;
+    private static final FirebaseStorage storage = FirebaseStorage.getInstance();
+    private static final StorageReference rootStorageRef = storage.getReference();
 
     public static void uploadLog(String filepath, String filename) {
-        StorageReference logStorageRef = rootStorageRef.child("logs").child(uniqueID).child(filename);
+        String uid = UniqueIDManager.getID();
+        StorageReference logStorageRef = rootStorageRef.child("logs").child(uid).child(filename);
 
-        Uri file = Uri.fromFile(new File(filepath));
-        UploadTask uploadTask = logStorageRef.putFile(file);
+        Uri uri = Uri.fromFile(new File(filepath));
+        UploadTask uploadTask = logStorageRef.putFile(uri);
 
         // Register observers to listen for when the download is done or if it fails
         uploadTask.addOnFailureListener(new OnFailureListener() {
             @Override
             public void onFailure(@NonNull Exception exception) {
                 // Handle unsuccessful uploads
-                Log.d(TAG, "Failed upload " + filename);
+                if (DBG) Log.e(TAG, "Failed upload " + filename);
             }
         }).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
             @Override
             public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
-                Log.d(TAG, "Successful upload " + filename);
+                if (DBG) Log.d(TAG, "Successful upload " + filename);
+                boolean deleteResult = new File(uri.getPath()).delete();
+                if (DBG) Log.d(TAG, "Deleted? " + deleteResult + ", " + filename);
             }
         });
     }
