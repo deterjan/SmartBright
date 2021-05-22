@@ -3,6 +3,7 @@ package com.example.smartbright;
 import android.content.Context;
 import android.util.Log;
 
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -15,15 +16,15 @@ import static com.example.smartbright.Definitions.DBG;
 public class LoggerCSV implements Logger {
     private static final String TAG = LoggerCSV.class.getSimpleName();
 
-    // Vars
-    public String FILENAME;
+    private static final String LOGS_PATH = "/data/data/com.example.smartbright/files/";
+    private String currentLogFilename;
     private List<String> keys;
-    private static FileOutputStream outputStream;
+    private FileOutputStream outputStream;
 
     private Context context;
-    final private static Object fileLock = new Object();
+    final private Object fileLock = new Object();
 
-    final private static int LOG_MAX_LINES = 100;
+    final private static int LOG_MAX_LINES = 1000;
     private int lines;
 
     private static final byte[] SPACE  = " ".getBytes();
@@ -43,23 +44,21 @@ public class LoggerCSV implements Logger {
         return new SimpleDateFormat("yyyy/MM/dd HH:mm:ss").format(new Date());
     }
 
+    @Override
     public void createFile(Context c){
-        // Set filename
-        FILENAME = "smartbright_" + (System.currentTimeMillis()/1000L) + ".log";
-
-        // Create file
         synchronized (fileLock) {
+            currentLogFilename = "smartbright_" + (System.currentTimeMillis()/1000L) + ".log";
             try {
-                outputStream = c.openFileOutput(FILENAME, Context.MODE_APPEND);
+                outputStream = c.openFileOutput(currentLogFilename, Context.MODE_APPEND);
                 appendHeader();
-                if (DBG) Log.d(TAG, "Log File:" + FILENAME + " created");
+                if (DBG) Log.d(TAG, "Log File:" + currentLogFilename + " created");
             } catch (Exception e) {
-                if (DBG) Log.e(TAG, "Can't open file " + FILENAME + ":" + e);
+                if (DBG) Log.e(TAG, "Can't open file " + currentLogFilename + ":" + e);
             }
         }
     }
 
-    public void appendHeader(){
+    private void appendHeader(){
         synchronized (fileLock){
             try {
                 outputStream.write(getHeader().getBytes());
@@ -70,14 +69,31 @@ public class LoggerCSV implements Logger {
         }
     }
 
-    // Close method
+    private void flushLogs() {
+        String[] logsPathFileList = new File(LOGS_PATH).list();
+        if (logsPathFileList == null) return;
+
+        for (String fname : logsPathFileList) {
+            if (fname.endsWith(".log") && !fname.equals(currentLogFilename)) {
+                FileUpload.uploadLog(LOGS_PATH + fname, fname);
+            }
+        }
+    }
+
+    @Override
     public void appendValues(Map<String, String> values) {
         synchronized (fileLock){
             try {
                 if (lines >= LOG_MAX_LINES) {
                     closeFile();
                     FileUpload.uploadLog(
-                            "/data/data/com.example.smartbright/files/"+FILENAME, FILENAME);
+                            LOGS_PATH + currentLogFilename, currentLogFilename);
+
+                    // before creating a new log, flush logs previously not uploaded
+                    flushLogs();
+
+                    // createFile is also synchronized on fileLock
+                    // but a thread can acquire a lock it already owns, so its ok
                     createFile(context);
                     lines = 0;
                 }
@@ -93,11 +109,14 @@ public class LoggerCSV implements Logger {
 
     }
 
+    @Override
     public void closeFile(){
-        try {
-            outputStream.close();
-        } catch (IOException ioe){
-            if (DBG) Log.e(TAG, "Can't close file " + FILENAME + ":" + ioe);
+        synchronized (fileLock) {
+            try {
+                outputStream.close();
+            } catch (IOException ioe){
+                if (DBG) Log.e(TAG, "Can't close file " + currentLogFilename + ":" + ioe);
+            }
         }
     }
 

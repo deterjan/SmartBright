@@ -7,12 +7,12 @@ import java.util.Map;
 
 public interface Logger {
 
-    public void appendValues(Map<String, String> values);
-    public void setKeys(List<String> keys);
-    public void createFile(Context c);
-    public void closeFile();
+    void appendValues(Map<String, String> values);
+    void setKeys(List<String> keys);
+    void createFile(Context c);
+    void closeFile();
 
-    public String getHeader();
-    public String getLine(Map<String, String> values);
+    String getHeader();
+    String getLine(Map<String, String> values);
 
 }
