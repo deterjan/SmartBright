@@ -19,6 +19,11 @@ import android.provider.Settings;
 
 import android.widget.CompoundButton;
 import android.widget.Switch;
+import android.widget.TextView;
+
+import java.io.File;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import static com.example.smartbright.PermissionsManager.REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS;
 
@@ -55,10 +60,6 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // make sure device has unique id
-        String uid = UniqueIDManager.initializeID(this);
-        if (DBG) Log.d(TAG, "Device ID: " + uid);
-
         // Get all permissions
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             if (DBG) Log.d(TAG, "Getting all permissions");
@@ -90,6 +91,23 @@ public class MainActivity extends AppCompatActivity {
         Intent serviceIntent = new Intent(this, ServiceClassPhone.class);
         serviceIntent.putExtra("inputExtra", "NU Screen Study");
         ContextCompat.startForegroundService(this, serviceIntent);
+
+        // print some debug stuff
+        Timer timer = new Timer();
+        timer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                TextView t = findViewById(R.id.logTextView);
+                String[] logsPathFileList = new File("/data/data/com.example.smartbright/files/").list();
+
+                LoggerCSV logger = LoggerCSV.getInstance();
+
+                String s1 = Integer.toString(logger.getNumLines()) + " < "
+                        + Integer.toString(LoggerCSV.LOG_MAX_LINES) + "\n";
+                String s2 = String.join("\n", logsPathFileList);
+                t.setText(s1+s2);
+            }
+        }, 0, 3000);
     }
 
     // Permissions stuff

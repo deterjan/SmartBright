@@ -42,20 +42,9 @@ public class FileUpload {
         } catch (Exception e) {
             if (DBG) Log.e(TAG, "Failed to compress file:  " + file);
         }
-
     }
 
-    public static void uploadLog(String filepath, String filename) {
-        String compressedFilepath = filepath + ".gz";
-        String compressedFilename = filename + ".gz";
-
-        Log.e(TAG, compressedFilepath);
-        compressGzipFile(filepath, compressedFilepath);
-
-        Uri uri = Uri.fromFile(new File(filepath));
-        boolean deleteResult = new File(uri.getPath()).delete();
-        if (DBG) Log.d(TAG, "Deleted log? " + deleteResult + ", " + filename);
-
+    public static void uploadLog(String compressedFilepath, String compressedFilename) {
         String uid = UniqueIDManager.getID();
         StorageReference logStorageRef = rootStorageRef.child("logs")
                 .child(uid).child(compressedFilename);
@@ -66,12 +55,26 @@ public class FileUpload {
         // Register observers to listen for when the download is done or if it fails
         uploadTask.addOnFailureListener(exception -> {
             // Handle unsuccessful uploads
-            if (DBG) Log.e(TAG, "Failed upload " + filename);
+            if (DBG) Log.e(TAG, "Failed upload " + compressedFilename);
         }).addOnSuccessListener(taskSnapshot -> {
-            if (DBG) Log.d(TAG, "Successful upload " + filename);
+            if (DBG) Log.d(TAG, "Successful upload " + compressedFilename);
             boolean deleteResult1 = new File(compressedUri.getPath()).delete();
             if (DBG) Log.d(TAG, "Deleted compressed log?  " +
                     deleteResult1 + ", " + compressedFilename);
         });
+    }
+
+    public static void compressAndUploadLog(String filepath, String filename) {
+        String compressedFilepath = filepath + ".gz";
+        String compressedFilename = filename + ".gz";
+
+        Log.e(TAG, compressedFilepath);
+        compressGzipFile(filepath, compressedFilepath);
+
+        Uri uri = Uri.fromFile(new File(filepath));
+        boolean deleteResult = new File(uri.getPath()).delete();
+        if (DBG) Log.d(TAG, "Deleted log? " + deleteResult + ", " + filename);
+
+        uploadLog(compressedFilepath, compressedFilename);
     }
 }

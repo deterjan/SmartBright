@@ -14,6 +14,9 @@ import java.util.Map;
 import static com.example.smartbright.Definitions.DBG;
 
 public class LoggerCSV implements Logger {
+
+    private static LoggerCSV instance;
+
     private static final String TAG = LoggerCSV.class.getSimpleName();
 
     private static final String LOGS_PATH = "/data/data/com.example.smartbright/files/";
@@ -24,14 +27,14 @@ public class LoggerCSV implements Logger {
     private Context context;
     final private Object fileLock = new Object();
 
-    final private static int LOG_MAX_LINES = 1000;
-    private int lines;
+    final public static int LOG_MAX_LINES = 1000;
+    private int numLines;
 
     private static final byte[] SPACE  = " ".getBytes();
     private static final byte[] NEWLINE= "\n".getBytes();
     private static final byte[] COMMA= ",".getBytes();
 
-    public LoggerCSV(Context c, List<String> keys) {
+    private LoggerCSV(Context c, List<String> keys) {
         // Set the keys
         setKeys(keys);
 
@@ -40,8 +43,18 @@ public class LoggerCSV implements Logger {
         createFile(c);
     }
 
-    public String getTime(){
-        return new SimpleDateFormat("yyyy/MM/dd HH:mm:ss").format(new Date());
+    public static void initialize(Context c, List<String> keys) {
+        if (instance == null) {
+            instance = new LoggerCSV(c, keys);
+        }
+    }
+
+    public static LoggerCSV getInstance() {
+        return instance;
+    }
+
+    public int getNumLines() {
+        return numLines;
     }
 
     @Override
@@ -56,6 +69,10 @@ public class LoggerCSV implements Logger {
                 if (DBG) Log.e(TAG, "Can't open file " + currentLogFilename + ":" + e);
             }
         }
+    }
+
+    private String getTime(){
+        return new SimpleDateFormat("yyyy/MM/dd HH:mm:ss").format(new Date());
     }
 
     private void appendHeader(){
@@ -75,6 +92,9 @@ public class LoggerCSV implements Logger {
 
         for (String fname : logsPathFileList) {
             if (fname.endsWith(".log") && !fname.equals(currentLogFilename)) {
+                FileUpload.compressAndUploadLog(LOGS_PATH + fname, fname);
+            }
+            else if (fname.endsWith(".log.gz")) {
                 FileUpload.uploadLog(LOGS_PATH + fname, fname);
             }
         }
@@ -84,9 +104,9 @@ public class LoggerCSV implements Logger {
     public void appendValues(Map<String, String> values) {
         synchronized (fileLock){
             try {
-                if (lines >= LOG_MAX_LINES) {
+                if (numLines >= LOG_MAX_LINES) {
                     closeFile();
-                    FileUpload.uploadLog(
+                    FileUpload.compressAndUploadLog(
                             LOGS_PATH + currentLogFilename, currentLogFilename);
 
                     // before creating a new log, flush logs previously not uploaded
@@ -95,12 +115,12 @@ public class LoggerCSV implements Logger {
                     // createFile is also synchronized on fileLock
                     // but a thread can acquire a lock it already owns, so its ok
                     createFile(context);
-                    lines = 0;
+                    numLines = 0;
                 }
 
                 outputStream.write(getLine(values).getBytes());
                 outputStream.write(NEWLINE);
-                lines++;
+                numLines++;
 
             } catch (IOException ioe) {
                 if (DBG) Log.e(TAG, "ERROR: Can't write string to file: " + ioe);

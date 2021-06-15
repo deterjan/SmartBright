@@ -49,6 +49,10 @@ import java.util.TreeMap;
 
 import static com.example.smartbright.Definitions.DBG;
 
+// TODO ondestroy
+// TODO location
+// TODO power: search power_avg in displayfilter
+
 @TargetApi(Build.VERSION_CODES.R)
 public class ServiceClassPhone extends Service implements SensorEventListener {
 
@@ -66,6 +70,10 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
 
     @Override
     public void onCreate() {
+        // make sure device has unique id
+        String uid = UniqueIDManager.initializeID(this);
+        if (DBG) Log.d(TAG, "Device ID: " + uid);
+
         sensorsValues = new HashMap<>();
         contentResolver = getContentResolver();
 
@@ -73,7 +81,8 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
         setUpSensors();
 
         // Create log file
-        logger = new LoggerCSV(this, Definitions.sensorsLogged);
+        LoggerCSV.initialize(this, Definitions.sensorsLogged);
+        logger = LoggerCSV.getInstance();
 
         // put initial brightness value in map
         int brightness = Settings.System.getInt(contentResolver, Settings.System.SCREEN_BRIGHTNESS, 0);
@@ -135,6 +144,7 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
 
         return START_REDELIVER_INTENT;
     }
+
     @RequiresApi(api = 26)
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -148,10 +158,6 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
             manager.createNotificationChannel(serviceChannel);
         }
     }
-    // end tod
-
-
-
 
     private void makePredictionRequestToServer() {
         RequestQueue queue = Volley.newRequestQueue(ServiceClassPhone.this);
