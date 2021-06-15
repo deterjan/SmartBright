@@ -25,6 +25,7 @@ import java.io.File;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import static com.example.smartbright.Definitions.LOG_MAX_LINES;
 import static com.example.smartbright.PermissionsManager.REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS;
 
 public class MainActivity extends AppCompatActivity {
@@ -103,11 +104,11 @@ public class MainActivity extends AppCompatActivity {
                 LoggerCSV logger = LoggerCSV.getInstance();
 
                 String s1 = Integer.toString(logger.getNumLines()) + " < "
-                        + Integer.toString(LoggerCSV.LOG_MAX_LINES) + "\n";
+                        + Integer.toString(LOG_MAX_LINES) + "\n";
                 String s2 = String.join("\n", logsPathFileList);
                 t.setText(s1+s2);
             }
-        }, 0, 3000);
+        }, 10000, 3000);
     }
 
     // Permissions stuff

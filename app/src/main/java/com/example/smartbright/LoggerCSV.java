@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 import static com.example.smartbright.Definitions.DBG;
+import static com.example.smartbright.Definitions.LOG_MAX_LINES;
 
 public class LoggerCSV implements Logger {
 
@@ -26,8 +27,6 @@ public class LoggerCSV implements Logger {
 
     private Context context;
     final private Object fileLock = new Object();
-
-    final public static int LOG_MAX_LINES = 1000;
     private int numLines;
 
     private static final byte[] SPACE  = " ".getBytes();

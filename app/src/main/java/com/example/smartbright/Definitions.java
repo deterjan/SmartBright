@@ -7,6 +7,8 @@ import java.util.List;
 public class Definitions {
     final static public boolean DBG = true;
 
+    final public static int LOG_MAX_LINES = 100000;
+
     final static public String PREDICT_URL = "http://picard.ece.northwestern.edu:5000/predict/";
 
     // Sensors being logged
