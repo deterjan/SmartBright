@@ -7,7 +7,8 @@ import java.util.List;
 public class Definitions {
     final static public boolean DBG = true;
 
-    final public static int LOG_MAX_LINES = 100000;
+    // 100k = 1.59 hours, 770kb
+    final public static int LOG_MAX_LINES = 1000;
 
     final static public String PREDICT_URL = "http://picard.ece.northwestern.edu:5000/predict/";
 
@@ -17,6 +18,8 @@ public class Definitions {
                     "gyro_x","gyro_y","gyro_z",
                     "temperature","pressure","humidity","heart_rate",
                     "stationary_detect","proximity","motion_detect",
-                    "screen_brightness","user_changed_brightness","foreground_app"));
+                    "screen_brightness","user_changed_brightness","foreground_app"
+            //        , "locationAltitude", "locationLatitude", "LocationLongitude", "locationAccuracy"
+            ));
 
 }

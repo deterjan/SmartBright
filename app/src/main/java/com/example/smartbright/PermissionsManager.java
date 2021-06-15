@@ -22,6 +22,7 @@ import android.view.WindowManager;
 
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AlertDialog;
+import androidx.core.content.ContextCompat;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -41,18 +42,66 @@ public class PermissionsManager {
 
     private final Activity mainActivity;
 
+    private boolean permissionToken = false;
+
     public PermissionsManager(Activity mainActivity) {
         this.mainActivity = mainActivity;
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.R)
+    public boolean getToken() {
+        return permissionToken;
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.M)
+    public void getAllPermissions() {
+        List<String> permissionsNeeded = new ArrayList<>();
+
+        final List<String> permissionsList = new ArrayList<String>();
+        if (!Settings.canDrawOverlays(mainActivity))
+            permissionsNeeded.add("Create Dialog Notifications");
+        if (!Settings.System.canWrite(mainActivity))
+            permissionsNeeded.add("Write Settings");
+        if (!addPermission(permissionsList, Manifest.permission.BODY_SENSORS))
+            permissionsNeeded.add("Get Ambient Sensor");
+        if (!addPermission(permissionsList, Manifest.permission.ACCESS_FINE_LOCATION))
+            permissionsNeeded.add("Get Fine Location Access");
+        if (!addPermission(permissionsList, Manifest.permission.ACCESS_COARSE_LOCATION))
+            permissionsNeeded.add("Get Coarse Location Access");
+
+        if (permissionsList.size() > 0) {
+            if (permissionsNeeded.size() > 0) {
+                // Need Rationale
+                permissionToken = true;
+                String message = "You need to grant access to " + permissionsNeeded.get(0);
+                for (int i = 1; i < permissionsNeeded.size(); i++)
+                    message = message + ", " + permissionsNeeded.get(i);
+                showMessageOKCancel(message,
+                        new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                mainActivity.requestPermissions(permissionsList.toArray(new String[permissionsList.size()]),
+                                        REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS);
+                            }
+                        });
+                return;
+            }
+            mainActivity.requestPermissions(permissionsList.toArray(new String[permissionsList.size()]),
+                    REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS);
+            return;
+        }
+    }
+
+    /*
+    @RequiresApi(api = Build.VERSION_CODES.M)
     public void getAllPermissions() {
         List<String> permissionsNeeded = new ArrayList<>();
 
         final List<String> permissionsList = new ArrayList<String>();
 
-        if (!Settings.canDrawOverlays(mainActivity))
+        if (!Settings.canDrawOverlays(mainActivity)) {
             permissionsNeeded.add("Create Dialog Notifications");
+            permissionsNeeded.add("System Alert");
+        }
         if (!addPermission(permissionsList, Manifest.permission.WRITE_SETTINGS))
             permissionsNeeded.add("Write Settings");
         if (!addPermission(permissionsList, Manifest.permission.BODY_SENSORS))
@@ -64,8 +113,6 @@ public class PermissionsManager {
         if (!addPermission(permissionsList, Manifest.permission.ACCESS_BACKGROUND_LOCATION))
             permissionsNeeded.add("Get Background Location Access");
 
-        if (!Settings.canDrawOverlays(mainActivity))
-            permissionsNeeded.add("System Alert");
         if (!addPermission(permissionsList, Manifest.permission.RECORD_AUDIO))
             permissionsNeeded.add("Audio Record");
         if (!addPermission(permissionsList, Manifest.permission.BATTERY_STATS))
@@ -82,22 +129,26 @@ public class PermissionsManager {
         if (permissionsList.size() > 0) {
             if (permissionsNeeded.size() > 0) {
                 // Need Rationale
+                permissionToken = true;
                 String message = "You need to grant access to " + permissionsNeeded.get(0);
                 for (int i = 1; i < permissionsNeeded.size(); i++)
                     message = message + ", " + permissionsNeeded.get(i);
                 showMessageOKCancel(message, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialogInterface, int i) {
-                        mainActivity.requestPermissions(permissionsList.toArray(new String[0]),
+                        mainActivity.requestPermissions(permissionsList.toArray(
+                                new String[permissionsList.size()]),
                                 REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS);
                     }
                 });
                 return;
             }
-            mainActivity.requestPermissions(permissionsList.toArray(new String[0]),
+            mainActivity.requestPermissions(permissionsList.toArray(
+                    new String[permissionsList.size()]),
                     REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS);
         }
     }
+    */
 
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     public boolean checkForUsageStatsPermission() {
@@ -128,7 +179,7 @@ public class PermissionsManager {
                 .show();
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.R)
+    @RequiresApi(api = Build.VERSION_CODES.M)
     private boolean addPermission(List<String> permissionsList, String permission) {
         if (mainActivity.checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED) {
             permissionsList.add(permission);
@@ -234,8 +285,6 @@ public class PermissionsManager {
                     layoutFlag = WindowManager.LayoutParams.TYPE_PHONE;
                 }
 
-                // android.view.WindowManager$BadTokenException:
-                // Unable to add window android.view.ViewRootImpl$W@f0ced5e -- permission denied for window type 2038
                 alertDialog.getWindow().setType(layoutFlag);
                 alertDialog.show();
             }
@@ -245,7 +294,7 @@ public class PermissionsManager {
         }
     }
 
-    public void showAppUsageStatsPermissionDialog() {
+    public MaterialDialog showAppUsageStatsPermissionDialog() {
         MaterialDialog d = new MaterialDialog.Builder(mainActivity)
                 .title("Permissions required")
                 .content("Failed to retrieve app usage " +
@@ -267,5 +316,79 @@ public class PermissionsManager {
         if (w != null) {
             w.setLayout(width, w.getAttributes().height);
         }
+
+        return d;
+    }
+
+    // TODO understand what is going on here
+    public boolean allPermissionsAreGranted(){
+        try {
+            Map<String, Integer> perms = new HashMap<String, Integer>();
+            // Initial
+            perms.put(Manifest.permission.SYSTEM_ALERT_WINDOW,
+                    ContextCompat.checkSelfPermission(mainActivity, Manifest.permission.SYSTEM_ALERT_WINDOW));
+            perms.put(Manifest.permission.BODY_SENSORS,
+                    ContextCompat.checkSelfPermission(mainActivity, Manifest.permission.BODY_SENSORS));
+            perms.put(Manifest.permission.PACKAGE_USAGE_STATS,
+                    ContextCompat.checkSelfPermission(mainActivity, Manifest.permission.PACKAGE_USAGE_STATS));
+            perms.put(Manifest.permission.ACCESS_FINE_LOCATION,
+                    ContextCompat.checkSelfPermission(mainActivity, Manifest.permission.ACCESS_FINE_LOCATION));
+            perms.put(Manifest.permission.ACCESS_COARSE_LOCATION,
+                    ContextCompat.checkSelfPermission(mainActivity, Manifest.permission.ACCESS_COARSE_LOCATION));
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                if (!Settings.canDrawOverlays(mainActivity)) {
+                    Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            Uri.parse("package:" + mainActivity.getPackageName()));
+                    mainActivity.startActivityForResult(intent, REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS);
+                } else {
+                    //requestOverlayPermission();
+                }
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                if (!Settings.System.canWrite(mainActivity.getApplicationContext())) {
+                    Intent intent = new Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS,
+                            Uri.parse("package:" + mainActivity.getPackageName()));
+                    mainActivity.startActivityForResult(intent, REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS);
+
+                } else {
+                    //requestSystemWritePermission();
+                }
+            }
+
+            //getAllPermissions();
+            boolean system_alert_window = Settings.canDrawOverlays(mainActivity);
+            boolean overwrite_settings = Settings.System.canWrite(mainActivity.getApplicationContext());
+            boolean body_sensors = perms.get(Manifest.permission.BODY_SENSORS) ==
+                    PackageManager.PERMISSION_GRANTED;
+            boolean phone_usage = checkForUsageStatsPermission();
+            boolean location_access1 = perms.get(Manifest.permission.ACCESS_FINE_LOCATION) ==
+                    PackageManager.PERMISSION_GRANTED;
+            boolean location_access2 = perms.get(Manifest.permission.ACCESS_COARSE_LOCATION) ==
+                    PackageManager.PERMISSION_GRANTED;
+
+            if (DBG) {
+                Log.d(TAG, "Permissions: " +
+                        system_alert_window + " " +
+                        overwrite_settings + " " +
+                        body_sensors + " " +
+                        phone_usage + " " +
+                        location_access1 + " " +
+                        location_access2);
+            }
+
+            if (perms.get(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                    && perms.get(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                    && perms.get(Manifest.permission.BODY_SENSORS) == PackageManager.PERMISSION_GRANTED
+                    && perms.get(Manifest.permission.PACKAGE_USAGE_STATS) == PackageManager.PERMISSION_GRANTED) {
+                // All Permissions Granted
+                DataHolder.getInstance().setVoicePermission(true);
+                return true;
+            }
+        }catch (Exception e){
+            Log.e(TAG, "ERROR on checking all permissions: " + e);
+        }
+        return false;
     }
 }

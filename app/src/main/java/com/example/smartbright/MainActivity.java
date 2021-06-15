@@ -5,6 +5,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
+import android.Manifest;
 import android.content.BroadcastReceiver;
 import android.content.ContentResolver;
 import android.content.Context;
@@ -62,10 +63,8 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         // Get all permissions
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            if (DBG) Log.d(TAG, "Getting all permissions");
-            pManager.getAllPermissions();
-        }
+        pManager.getAllPermissions();
+
         if (!pManager.checkForUsageStatsPermission()){
             Log.d(TAG, "check for usage permission showing dialog1");
             pManager.permissionForUsageStats();
@@ -74,6 +73,8 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, "check for usage permission showing dialog2");
             pManager.showAppUsageStatsPermissionDialog();
         }
+
+        if (!pManager.getToken()) pManager.allPermissionsAreGranted();
 
         //Get the content resolver
         cResolver = getContentResolver();

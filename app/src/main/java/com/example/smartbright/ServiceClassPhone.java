@@ -17,6 +17,7 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.location.LocationManager;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Handler;
@@ -50,7 +51,7 @@ import java.util.TreeMap;
 import static com.example.smartbright.Definitions.DBG;
 
 // TODO ondestroy
-// TODO location
+// TODO location stuff commented
 // TODO power: search power_avg in displayfilter
 
 @TargetApi(Build.VERSION_CODES.R)
@@ -66,7 +67,11 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
     private final IBinder mBinder = new LocalBinder();
     private ContentResolver contentResolver;
 
+    // whether we are asking server for predicted brightness
     public static boolean shouldMakeRequests = false;
+
+    LocationManager lm;
+    LocationTracker locationTracker;
 
     @Override
     public void onCreate() {
@@ -79,6 +84,9 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
 
         // Setup the sensors
         setUpSensors();
+
+        // lm = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
+        //locationTracker = new LocationTracker(lm);
 
         // Create log file
         LoggerCSV.initialize(this, Definitions.sensorsLogged);
@@ -355,6 +363,11 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
 
         // Log
         if (shouldLog) {
+            // sensorsValues.put("locationAltitude", locationTracker.getAltitude().toString());
+            // sensorsValues.put("locationLatitude", locationTracker.getLatitude().toString());
+            // sensorsValues.put("LocationLongitude", locationTracker.getLongitude().toString());
+            // sensorsValues.put("locationAccuracy", locationTracker.getAccuracy().toString());
+
             sensorsValues.put("foreground_app", getForegroundAppName());
             logger.appendValues(sensorsValues);
         }
