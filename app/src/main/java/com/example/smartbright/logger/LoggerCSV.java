@@ -1,7 +1,9 @@
-package com.example.smartbright;
+package com.example.smartbright.logger;
 
 import android.content.Context;
 import android.util.Log;
+
+import com.example.smartbright.FileUpload;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -59,7 +61,7 @@ public class LoggerCSV implements Logger {
     @Override
     public void createFile(Context c){
         synchronized (fileLock) {
-            currentLogFilename = "smartbright_" + (System.currentTimeMillis()/1000L) + ".log";
+            currentLogFilename = "smartbright_" + (System.currentTimeMillis()/1000L) + ".csv";
             try {
                 outputStream = c.openFileOutput(currentLogFilename, Context.MODE_APPEND);
                 appendHeader();
@@ -90,10 +92,10 @@ public class LoggerCSV implements Logger {
         if (logsPathFileList == null) return;
 
         for (String fname : logsPathFileList) {
-            if (fname.endsWith(".log") && !fname.equals(currentLogFilename)) {
+            if (fname.endsWith(".csv") && !fname.equals(currentLogFilename)) {
                 FileUpload.compressAndUploadLog(LOGS_PATH + fname, fname);
             }
-            else if (fname.endsWith(".log.gz")) {
+            else if (fname.endsWith(".csv.gz")) {
                 FileUpload.uploadLog(LOGS_PATH + fname, fname);
             }
         }

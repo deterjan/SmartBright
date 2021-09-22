@@ -1,3 +1,31 @@
 <resources>
     <string name="app_name">SmartBright</string>
+
+    <string name="satisfaction_title">How is your phone experience today?</string>
+    <string name="screen_brightness_title">How is your phone experience today?</string>
+    <string name="annoying_popup_title">Please press OK to continue</string>
+    <string name="empty_title"></string>
+    <string name="continue_title"></string>
+
+
+    <string-array name="satisfactions">
+        <item>@string/very_good</item>
+        <item>@string/good</item>
+        <item>@string/okay</item>
+        <item>@string/bad</item>
+        <item>@string/very_bad</item>
+    </string-array>
+
+    <string name="very_good">Very Good</string>
+    <string name="good">Good</string>
+    <string name="okay">Okay</string>
+    <string name="bad">Bad</string>
+    <string name="very_bad">Very Bad</string>
+    <string name="ok">OK</string>
+    <string name="done">DONE</string>
+    <string name="continue_">Continue</string>
+
+    <string name="granted_btn_text">GRANTED</string>
+    <string name="grant_btn_text">GRANT</string>
+    <string name="start_service_btn_text">START SERVICE</string>
 </resources>

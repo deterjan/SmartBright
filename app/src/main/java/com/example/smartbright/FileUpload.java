@@ -3,10 +3,6 @@ package com.example.smartbright;
 import android.net.Uri;
 import android.util.Log;
 
-import androidx.annotation.NonNull;
-
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
@@ -45,7 +41,7 @@ public class FileUpload {
     }
 
     public static void uploadLog(String compressedFilepath, String compressedFilename) {
-        String uid = UniqueIDManager.getID();
+        String uid = UniqueIDManager.getUniqueID();
         StorageReference logStorageRef = rootStorageRef.child("logs")
                 .child(uid).child(compressedFilename);
 

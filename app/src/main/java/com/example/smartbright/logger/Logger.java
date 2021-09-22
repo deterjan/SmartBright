@@ -1,4 +1,4 @@
-package com.example.smartbright;
+package com.example.smartbright.logger;
 
 import android.content.Context;
 

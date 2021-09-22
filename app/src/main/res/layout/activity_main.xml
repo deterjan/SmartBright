@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -6,7 +7,160 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
-    <Switch
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:paddingLeft="16dp"
+        android:paddingRight="16dp"
+        android:paddingTop="16dp"
+        android:orientation="vertical" >
+
+        <TextView
+            android:id="@+id/debugTextView"
+            android:layout_width="334dp"
+            android:layout_height="222dp"
+            android:layout_gravity="center"
+            android:scrollbars="vertical"
+            android:text=""
+            app:layout_constraintBottom_toTopOf="@+id/switch1"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <LinearLayout
+            android:id="@+id/locationPermRow"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal" >
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start|center_vertical"
+                android:layout_weight="1"
+                android:gravity="start|center_vertical"
+                android:singleLine="true"
+                android:text="Location Permission" />
+
+            <Button
+                android:id="@+id/locationPermBtn"
+                android:layout_width="120dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:text="@string/grant_btn_text"  />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/backLocationPermRow"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal" >
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start|center_vertical"
+                android:layout_weight="1"
+                android:gravity="start|center_vertical"
+                android:singleLine="true"
+                android:text="Background Location Permission"
+                />
+
+            <Button
+                android:id="@+id/backLocationPermBtn"
+                android:layout_width="120dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:text="@string/grant_btn_text" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/activityPermRow"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal" >
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start|center_vertical"
+                android:layout_weight="1"
+                android:gravity="start|center_vertical"
+                android:singleLine="true"
+                android:text="Activity Recognition Permission"
+                />
+
+            <Button
+                android:id="@+id/activityPermBtn"
+                android:layout_width="120dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:text="@string/grant_btn_text"  />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/usagePermRow"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal" >
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start|center_vertical"
+                android:layout_weight="1"
+                android:gravity="start|center_vertical"
+                android:singleLine="true"
+                android:text="Usage Stats Permission"
+                />
+
+            <Button
+                android:id="@+id/usagePermBtn"
+                android:layout_width="120dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:text="@string/grant_btn_text"  />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/overlayPermRow"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal" >
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start|center_vertical"
+                android:layout_weight="1"
+                android:gravity="start|center_vertical"
+                android:singleLine="true"
+                android:text="Draw Overlays Permission"
+                />
+
+            <Button
+                android:id="@+id/overlayPermBtn"
+                android:layout_width="120dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:text="@string/grant_btn_text"  />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/startServiceRow"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_horizontal">
+
+            <Button
+                android:id="@+id/startServiceBtn"
+                android:layout_width="120dp"
+                android:layout_height="wrap_content"
+                android:text="@string/start_service_btn_text"
+                android:enabled="false"/>
+        </LinearLayout>
+
+
+    </LinearLayout>
+
+    <androidx.appcompat.widget.SwitchCompat
         android:id="@+id/switch1"
         android:layout_width="113dp"
         android:layout_height="78dp"
@@ -14,15 +168,5 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
-
-    <TextView
-        android:id="@+id/logTextView"
-        android:layout_width="268dp"
-        android:layout_height="386dp"
-        android:text="TextView"
-        app:layout_constraintBottom_toTopOf="@+id/switch1"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

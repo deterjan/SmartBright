@@ -1,7 +1,6 @@
 package com.example.smartbright;
 
 import android.annotation.TargetApi;
-import android.app.ActivityManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -12,18 +11,23 @@ import android.app.usage.UsageStatsManager;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.database.ContentObserver;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.location.Location;
 import android.location.LocationManager;
+import android.os.BatteryManager;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.PowerManager;
 import android.provider.Settings;
 import android.util.Log;
+import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
@@ -36,6 +40,11 @@ import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
+import com.example.smartbright.logger.Logger;
+import com.example.smartbright.logger.LoggerCSV;
+import com.example.smartbright.servicehelper.ActivityRecognitionHelper;
+import com.example.smartbright.servicehelper.LocationHelper;
+import com.example.smartbright.servicehelper.UserSatisfactionHelper;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -48,45 +57,40 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.TreeMap;
 
+import static com.example.smartbright.Definitions.BATTERY_READING_PERIOD_MS;
 import static com.example.smartbright.Definitions.DBG;
 
 // TODO ondestroy
-// TODO location stuff commented
-// TODO power: search power_avg in displayfilter
 
 @TargetApi(Build.VERSION_CODES.R)
 public class ServiceClassPhone extends Service implements SensorEventListener {
 
-    public static final String CHANNEL_ID = "ForegroundServiceChannel";
     private static final String TAG = ServiceClassPhone.class.getSimpleName();
+    public static final String CHANNEL_ID = "ForegroundServiceChannel";
 
     private Logger logger; // logger object
     private Map<String, String> sensorsValues; // sensor values map for logging
-    private int lastBrightness; // keep last brightness to fix brightnessObserver bug
 
     private final IBinder mBinder = new LocalBinder();
     private ContentResolver contentResolver;
 
     // whether we are asking server for predicted brightness
+    private int lastBrightness; // keep last brightness to fix brightnessObserver bug
     public static boolean shouldMakeRequests = false;
 
-    LocationManager lm;
-    LocationTracker locationTracker;
+    ActivityRecognitionHelper activityHelper;
+    LocationHelper locationHelper;
+    UserSatisfactionHelper satisfactionHelper;
+
+    private static boolean isServiceRunning;
 
     @Override
     public void onCreate() {
         // make sure device has unique id
-        String uid = UniqueIDManager.initializeID(this);
-        if (DBG) Log.d(TAG, "Device ID: " + uid);
+        UniqueIDManager.initializeID(this);
 
         sensorsValues = new HashMap<>();
         contentResolver = getContentResolver();
-
-        // Setup the sensors
-        setUpSensors();
-
-        // lm = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
-        //locationTracker = new LocationTracker(lm);
 
         // Create log file
         LoggerCSV.initialize(this, Definitions.sensorsLogged);
@@ -97,6 +101,7 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
         sensorsValues.put("screen_brightness", Integer.toString(brightness));
         sensorsValues.put("user_changed_brightness", "1");
         lastBrightness = brightness;
+
 
         // observer for tracking changes to screen brightness
         ContentObserver brightnessObserver = new ContentObserver(new Handler()) {
@@ -112,6 +117,7 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
                     logger.appendValues(sensorsValues);
                     sensorsValues.put("user_changed_brightness", "1");
                 }
+
                 lastBrightness = brightness;
             }
         };
@@ -129,10 +135,25 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
                 }
             }
         }, 3000, 10000);
+
+        activityHelper = new ActivityRecognitionHelper(this);
+        locationHelper = new LocationHelper(this);
+        satisfactionHelper = new UserSatisfactionHelper(this);
+
+
+        // set collector to run every COLLECTOR_PERIOD ms
+        mCollectorHandler.postDelayed(mCollectorRefresh, COLLECTOR_PERIOD);
+
+        if (DBG) Log.i(TAG, "Starting service!");
+        Toast.makeText(this, "Started service!", Toast.LENGTH_SHORT).show();
+        isServiceRunning = true;
     }
 
+    public static boolean isRunning() {
+        return isServiceRunning;
+    }
 
-    @RequiresApi(api = 26)
+    // create a permanent notification so service can always run in background
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         String input = intent.getStringExtra("inputExtra");
@@ -153,6 +174,7 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
         return START_REDELIVER_INTENT;
     }
 
+
     @RequiresApi(api = 26)
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -167,6 +189,7 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
         }
     }
 
+    // ask server to make a brightness prediction based on sensor values
     private void makePredictionRequestToServer() {
         RequestQueue queue = Volley.newRequestQueue(ServiceClassPhone.this);
         JSONObject jsonBody = new JSONObject();
@@ -179,21 +202,21 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
             if (DBG) Log.e(TAG, e.toString());
         }
 
-        final String url = Definitions.PREDICT_URL + UniqueIDManager.getID();
+        final String url = Definitions.PREDICT_URL + UniqueIDManager.getUniqueID();
         JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.POST,
                 url,
                 jsonBody,
                 new Response.Listener<JSONObject>() {
-            @Override
-            public void onResponse(JSONObject response) {
-                try{
-                    int prediction = response.getInt("prediction");
-                    broadcastSetBrightnessIntent(prediction);
-                } catch (JSONException e) {
-                    if (DBG) Log.e(TAG, e.toString());
-                }
-            }
-        }, new Response.ErrorListener() {
+                    @Override
+                    public void onResponse(JSONObject response) {
+                        try {
+                            int prediction = response.getInt("prediction");
+                            broadcastSetBrightnessIntent(prediction);
+                        } catch (JSONException e) {
+                            if (DBG) Log.e(TAG, e.toString());
+                        }
+                    }
+                }, new Response.ErrorListener() {
             @Override
             public void onErrorResponse(VolleyError e) {
                 if (DBG) Log.e(TAG, e.toString());
@@ -203,6 +226,7 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
         queue.add(jsonObjectRequest);
     }
 
+    // send a broadcast message to change screen brightness
     private void broadcastSetBrightnessIntent(int prediction) {
         Intent intent = new Intent("setBrightness");
         intent.putExtra("brightness", prediction);
@@ -226,151 +250,37 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
     @Override
     public final void onSensorChanged(SensorEvent event) {
         // Sensor obj
-        Sensor sensor = event.sensor;
-        int type = sensor.getType();
 
-        boolean shouldLog = false;
-
-        try {
-            if (type == Sensor.TYPE_GYROSCOPE) {
-
-                // Get vals
-                Float gyro_x = event.values[0];
-                Float gyro_y = event.values[1];
-                Float gyro_z = event.values[2];
-
-                // Change hashmap to be printed to log
-                sensorsValues.put("gyro_x", gyro_x.toString());
-                sensorsValues.put("gyro_y", gyro_y.toString());
-                sensorsValues.put("gyro_z", gyro_z.toString());
-
-                // Make sure we log
-                shouldLog = true;
-                if (DBG) Log.v(TAG, "gyro_x " + gyro_x + " gyro_y " + gyro_y + " gyro_z " + gyro_z);
-
-            }
-            if (type == Sensor.TYPE_ACCELEROMETER) {
-
-                // Get vals
-                Float acc_x = event.values[0];
-                Float acc_y = event.values[1];
-                Float acc_z = event.values[2];
-
-                // Change hashmap to be printed to log
-                sensorsValues.put("acc_x", acc_x.toString());
-                sensorsValues.put("acc_y", acc_y.toString());
-                sensorsValues.put("acc_z", acc_z.toString());
-
-                // Make sure we log
-                shouldLog = true;
-                if (DBG) Log.v(TAG, "acc_x " + acc_x + " acc_y " + acc_y + " acc_z " + acc_z);
-
-            }
-            if (type == Sensor.TYPE_LIGHT) {
-
-                // Get lxlight value
-                Float lxLight = event.values[0];
-
-                // change Hashmap to be printed
-                sensorsValues.put("ambient_light", lxLight.toString());
-
-                // Make sure we log
-                shouldLog = true;
-                if (DBG) Log.v(TAG, "Light " + lxLight);
-
-            }
-            if (type == Sensor.TYPE_AMBIENT_TEMPERATURE) {
-
-                // Get temperature
-                Float temp = event.values[0];
-
-                // change Hashmap to be printed
-                sensorsValues.put("temperature", temp.toString());
-
-                // Make sure we log
-                shouldLog = true;
-                if (DBG) Log.v(TAG, "Temp " + temp);
-            }
-            if (type == Sensor.TYPE_PROXIMITY) {
-                // Get detect flag
-                Float proximity = event.values[0];
-
-                // change Hashmap to be printed
-                sensorsValues.put("proximity", proximity.toString());
-
-                // Make sure we log
-                shouldLog = true;
-                if (DBG) Log.v(TAG, "proximity " + proximity);
-            }
-            if (type == Sensor.TYPE_STATIONARY_DETECT) {
-                // Get detect flag
-                Float stationary_detect = event.values[0];
-
-                // change Hashmap to be printed
-                sensorsValues.put("stationary_detect", stationary_detect.toString());
-
-                // Make sure we log
-                shouldLog = true;
-                if (DBG) Log.v(TAG, "stationary_detect " + stationary_detect);
-            }
-            if (type == Sensor.TYPE_RELATIVE_HUMIDITY) {
-                // Get detect flag
-                Float humidity = event.values[0];
-
-                // change Hashmap to be printed
-                sensorsValues.put("humidity", humidity.toString());
-
-                // Make sure we log
-                shouldLog = true;
-                if (DBG) Log.v(TAG, "humidity " + humidity);
-            }
-            if (type == Sensor.TYPE_PRESSURE) {
-                // Get detect flag
-                Float pressure = event.values[0];
-
-                // change Hashmap to be printed
-                sensorsValues.put("pressure", pressure.toString());
-
-                // Make sure we log
-                shouldLog = true;
-                if (DBG) Log.v(TAG, "pressure " + pressure);
-            }
-            if (type == Sensor.TYPE_MOTION_DETECT) {
-                // Get detect flag
-                Float motion_detect = event.values[0];
-
-                // change Hashmap to be printed
-                sensorsValues.put("motion_detect", motion_detect.toString());
-
-                // Make sure we log
-                shouldLog = true;
-                if (DBG) Log.v(TAG, "motion_detect " + motion_detect);
-            }
-            if (type == Sensor.TYPE_HEART_RATE) {
-                // Get detect flag
-                Float heart_rate = event.values[0];
-
-                // change Hashmap to be printed
-                sensorsValues.put("heart_rate", heart_rate.toString());
-
-                // Make sure we log
-                shouldLog = true;
-                if (DBG) Log.v(TAG, "heart_rate " + heart_rate);
-            }
-        } catch (Exception e) {
-            if (DBG) Log.e(TAG, "Error in sensor reading");
-        }
 
         // Log
-        if (shouldLog) {
-            // sensorsValues.put("locationAltitude", locationTracker.getAltitude().toString());
-            // sensorsValues.put("locationLatitude", locationTracker.getLatitude().toString());
-            // sensorsValues.put("LocationLongitude", locationTracker.getLongitude().toString());
-            // sensorsValues.put("locationAccuracy", locationTracker.getAccuracy().toString());
+        sensorsValues.put("foreground_app", getForegroundAppName());
+        // check if screen is on
+        PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
+        sensorsValues.put("screen_interactive", powerManager.isInteractive() ? "1" : "0");
 
-            sensorsValues.put("foreground_app", getForegroundAppName());
-            logger.appendValues(sensorsValues);
+        // user satisfaction
+        // sensorsValues.put("last_user_satisfaction", lastUserSatisfaction.toString());
+
+        if (System.currentTimeMillis() - lastReadingTime > BATTERY_READING_PERIOD_MS) {
+            lastReadingTime = System.currentTimeMillis();
+            doPowerReadings();
+            sensorsValues.put("current", current_now_ma.toString());
+            sensorsValues.put("voltage", voltage_now.toString());
+            sensorsValues.put("power", power_now.toString());
         }
+
+        logger.appendValues(sensorsValues);
+
+        /*
+        if (currentLoc != null) {
+            sensorsValues.put("location_altitude", ((Double) currentLoc.getAltitude()).toString());
+            sensorsValues.put("location_latitude", ((Double) currentLoc.getLatitude()).toString());
+            sensorsValues.put("location_longitude", ((Double) currentLoc.getLongitude()).toString());
+            sensorsValues.put("location_accuracy", ((Float) currentLoc.getAccuracy()).toString());
+        } else {
+            Log.e(TAG, "THIS IS NULL");
+        }
+        */
     }
 
 
@@ -379,100 +289,87 @@ public class ServiceClassPhone extends Service implements SensorEventListener {
         // Do something here if sensor accuracy changes.
     }
 
-    private SensorManager sensorManager;
-    private Sensor light;
-    private Sensor acceleration;
-    private Sensor gyro;
-    private Sensor temperature;
-    private Sensor walking;
-    private Sensor stationary;
-    private Sensor humidity;
-    private Sensor pressure;
-    private Sensor motion_detect;
-    private Sensor heart_rate;
-
-    private void setUpSensors() {
-        sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-
-        // Light sensor
-        light = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT);
-        sensorManager.registerListener(this, light, SensorManager.SENSOR_DELAY_NORMAL);
-        sensorsValues.put("ambient_light", "");
-
-        // Accelerometer
-        acceleration = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-        sensorManager.registerListener(this, acceleration, SensorManager.SENSOR_DELAY_NORMAL);
-        sensorsValues.put("acc_x", "");
-        sensorsValues.put("acc_y", "");
-        sensorsValues.put("acc_z", "");
-
-        // gyroscope
-        gyro = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
-        sensorManager.registerListener(this, gyro, SensorManager.SENSOR_DELAY_NORMAL);
-        sensorsValues.put("gyro_x", "");
-        sensorsValues.put("gyro_y", "");
-        sensorsValues.put("gyro_z", "");
-
-        // Temperature
-        temperature = sensorManager.getDefaultSensor(Sensor.TYPE_AMBIENT_TEMPERATURE);
-        sensorManager.registerListener(this, temperature, SensorManager.SENSOR_DELAY_NORMAL);
-
-        // Step detector (1 if step detected)
-        walking = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_DETECTOR);
-        sensorManager.registerListener(this, walking, SensorManager.SENSOR_DELAY_NORMAL);
-
-        // Stationary detect
-        stationary = sensorManager.getDefaultSensor(Sensor.TYPE_STATIONARY_DETECT);
-        sensorManager.registerListener(this, stationary, SensorManager.SENSOR_DELAY_NORMAL);
-
-        // Humidity
-        humidity = sensorManager.getDefaultSensor(Sensor.TYPE_RELATIVE_HUMIDITY);
-        sensorManager.registerListener(this, humidity, SensorManager.SENSOR_DELAY_NORMAL);
-
-        // Pressure
-        pressure = sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE);
-        sensorManager.registerListener(this, pressure, SensorManager.SENSOR_DELAY_NORMAL);
-
-        // Motion detect
-        motion_detect = sensorManager.getDefaultSensor(Sensor.TYPE_MOTION_DETECT);
-        sensorManager.registerListener(this, motion_detect, SensorManager.SENSOR_DELAY_NORMAL);
-
-        // Heart Rate
-        heart_rate = sensorManager.getDefaultSensor(Sensor.TYPE_HEART_RATE);
-        sensorManager.registerListener(this, heart_rate, SensorManager.SENSOR_DELAY_NORMAL);
-    }
 
     private String getForegroundAppName() {
-        // TODO user needs to enable "USAGE DATA ACCESS" for smartbright
+        // user needs to enable "USAGE DATA ACCESS" for smartbright
         String currentApp = "NULL";
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-            UsageStatsManager usm = (UsageStatsManager) this.getSystemService(Context.USAGE_STATS_SERVICE);
-            long time = System.currentTimeMillis();
-            List<UsageStats> appList = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, time - 1000 * 1000, time);
-            if (appList == null)
-                System.out.println("applist is null");
-            if (appList.size() == 0) {
-                // System.out.println(appList.get(0));
-                System.out.println("applist size is 0");
+        UsageStatsManager usm = (UsageStatsManager) this.getSystemService(Context.USAGE_STATS_SERVICE);
+        long time = System.currentTimeMillis();
+        List<UsageStats> appList = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, time - 1000 * 1000, time);
+        if (appList == null) {
+            // todo problem!
+        }
+        else if (appList.size() == 0) {
+            // todo problem!
+        }
+        else {
+            SortedMap<Long, UsageStats> mySortedMap = new TreeMap<Long, UsageStats>();
+            for (UsageStats usageStats : appList) {
+                mySortedMap.put(usageStats.getLastTimeUsed(), usageStats);
             }
-            if (appList != null && appList.size() > 0) {
-                SortedMap<Long, UsageStats> mySortedMap = new TreeMap<Long, UsageStats>();
-                for (UsageStats usageStats : appList) {
-                    mySortedMap.put(usageStats.getLastTimeUsed(), usageStats);
-                }
-                if (mySortedMap != null && !mySortedMap.isEmpty()) {
-                    currentApp = mySortedMap.get(mySortedMap.lastKey()).getPackageName();
-                }
+            if (!mySortedMap.isEmpty()) {
+                currentApp = mySortedMap.get(mySortedMap.lastKey()).getPackageName();
             }
-        } else {
-            ActivityManager am = (ActivityManager) this.getSystemService(Context.ACTIVITY_SERVICE);
-            List<ActivityManager.RunningAppProcessInfo> tasks = am.getRunningAppProcesses();
-            currentApp = tasks.get(0).processName;
         }
 
         if (DBG) Log.v(TAG, "Current App in foreground is: " + currentApp);
         return currentApp;
     }
+
+    // power logging
+    private Double current_now_ma = .0; // in milliamperes
+    private Double voltage_now = .0; // in millivolts
+    private Double power_now = .0;
+    private long lastReadingTime = System.currentTimeMillis();
+
+    private void doPowerReadings() {
+        BatteryManager batteryManager = (BatteryManager) getSystemService(Context.BATTERY_SERVICE);
+        double current_now_ua = batteryManager.getLongProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW);
+
+        IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+        Intent b = this.registerReceiver(null, ifilter);
+        voltage_now = b.getIntExtra(BatteryManager.EXTRA_VOLTAGE, -1) * 1.0;
+
+        current_now_ma = current_now_ua / 1000; // from microamperes to milliamperes
+        power_now = current_now_ma * voltage_now / 1000; // mW
+    }
+
+    final static public long COLLECTOR_PERIOD = 2000; // 2 sec
+    Handler mCollectorHandler = new Handler();
+    Runnable mCollectorRefresh = new Runnable() {
+        @Override
+        public void run() {
+            try {
+
+                try {
+                    satisfactionHelper.askUserSatisfaction();
+                } catch (Exception e) {
+                    Log.d("SATISFACTION", "Error in asking user satisfaction");
+                }
+
+                try{
+                    activityHelper.getActivities();
+                }catch (Exception e){
+                    Log.d(TAG , "Error in activities");
+                }
+
+                try{
+                    locationHelper.startCollectingLocation();
+                }catch (Exception e){
+                    Log.d(TAG, "Error on collecting location");
+                }
+
+
+
+                mCollectorHandler.postDelayed(mCollectorRefresh, COLLECTOR_PERIOD); // in every 2 sec
+            } catch (Exception e) {
+                Log.i("SATISFACTION", "Error occured in collector: " + e);
+                e.fillInStackTrace();
+                mCollectorHandler.postDelayed(mCollectorRefresh, COLLECTOR_PERIOD); // run every 2000 sec
+            }
+        }
+    };
+
 
 
 }
