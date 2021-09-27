@@ -1,4 +1,4 @@
-package com.example.smartbright.servicehelper;
+package com.example.smartbright.dataprovider;
 
 import static com.example.smartbright.Definitions.DBG;
 
@@ -8,32 +8,32 @@ import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Build;
 import android.util.Log;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 
-import com.example.smartbright.ServiceClassPhone;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 
-// todo Location stuff logging
-// todo make sure location is turned on
-public class LocationHelper {
-    private static final String TAG = LocationHelper.class.getSimpleName();
+import java.util.HashMap;
+import java.util.Map;
+
+// todo make sure location is turned on in phone settings?
+public class LocationProvider implements DataProvider {
+    private static final String TAG = LocationProvider.class.getSimpleName();
+
+    public static final int MIN_PERIOD_MS = 20000;
+    public static final int PERIOD_MS = 10000;
 
     private final Service service;
 
     private boolean startedCollectingLocation = false;
-    private FusedLocationProviderClient mFusedLocationClient;
-    private LocationRequest mLocationRequest;
-    private LocationCallback mLocationCallback;
     private Location mLocation;
 
-    public LocationHelper(Service service) {
+    public LocationProvider(Service service) {
         this.service = service;
     }
 
@@ -45,42 +45,36 @@ public class LocationHelper {
                 (Build.VERSION.SDK_INT > Build.VERSION_CODES.P &&
                         ContextCompat.checkSelfPermission(service, Manifest.permission.ACCESS_BACKGROUND_LOCATION) !=
                                 PackageManager.PERMISSION_GRANTED)) {
-            // if(DBG) Log.d(TAG, "location is not granted yet!");
-            // Toast.makeText(service, "Please grant location permission and all requested " +
-            //                "permissions for App Usage application!",
-            //        Toast.LENGTH_LONG).show();
+
+            if (DBG) Log.e(TAG, "Location permission not granted!");
+
             startedCollectingLocation = false;
             return;
         }
         if (startedCollectingLocation) return;
 
-        if (DBG) Log.d(TAG, "Location collecting starting...");
-        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(service);
-        mLocationCallback = new LocationCallback() {
+        if (DBG) Log.d(TAG, "Staring to collect location data....");
+        FusedLocationProviderClient mFusedLocationClient = LocationServices.getFusedLocationProviderClient(service);
+        LocationCallback mLocationCallback = new LocationCallback() {
             @Override
             public void onLocationResult(@NonNull LocationResult locationResult) {
                 super.onLocationResult(locationResult);
                 onNewLocation(locationResult.getLastLocation());
+
                 for (Location location : locationResult.getLocations()) {
                     if (location != null) {
                         if (DBG) Log.d(TAG, "location: " + location.getLatitude()
                                 + " " + location.getAccuracy() + " " + location.getLongitude());
-                        // mLogger.logStringEntry("LocAlt: " + location.getAltitude());
-                        // mLogger.logStringEntry("LocLat: " + location.getLatitude());
-                        // mLogger.logStringEntry("LocLon: " + location.getLongitude());
-                        // mLogger.logStringEntry("LocAcc: " + location.getAccuracy());
-
                     } else {
-                        if (DBG) Log.d(TAG, "location: null");
+                        if (DBG) Log.e(TAG, "location: null");
                     }
                 }
             }
         };
 
-        //createLocationRequest();
-        mLocationRequest = LocationRequest.create()
-                .setInterval(20000)
-                .setFastestInterval(10000)
+        LocationRequest mLocationRequest = LocationRequest.create()
+                .setInterval(PERIOD_MS)
+                .setFastestInterval(MIN_PERIOD_MS)
                 .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
         mFusedLocationClient.requestLocationUpdates(mLocationRequest, mLocationCallback, null);
         startedCollectingLocation = true;
@@ -88,12 +82,18 @@ public class LocationHelper {
 
     private void onNewLocation(Location location) {
         if (DBG) Log.d(TAG, "New location: " + location);
-
         mLocation = location;
+    }
 
-        // Notify anyone listening for broadcasts about the new location.
-        // Intent intent = new Intent(ACTION_BROADCAST);
-        // intent.putExtra(EXTRA_LOCATION, location);
-        // LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(intent);
+    @Override
+    public Map<String, Object> getData() {
+        HashMap<String, Object> map = new HashMap<>();
+
+        map.put("altitude", mLocation.getAltitude());
+        map.put("latitude", mLocation.getLatitude());
+        map.put("longitude", mLocation.getLongitude());
+        map.put("accuracy", (double) mLocation.getAccuracy());
+
+        return map;
     }
 }

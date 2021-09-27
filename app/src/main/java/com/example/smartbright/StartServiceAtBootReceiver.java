@@ -7,6 +7,8 @@ import android.util.Log;
 
 import androidx.core.content.ContextCompat;
 
+import com.example.smartbright.service.ServiceClassPhone;
+
 public class StartServiceAtBootReceiver extends BroadcastReceiver {
     private static final String TAG = StartServiceAtBootReceiver.class.getSimpleName();
 

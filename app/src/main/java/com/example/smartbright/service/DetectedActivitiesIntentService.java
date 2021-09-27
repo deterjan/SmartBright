@@ -1,11 +1,12 @@
-package com.example.smartbright;
+package com.example.smartbright.service;
 
 import android.app.IntentService;
-import android.content.Context;
 import android.content.Intent;
-import android.content.res.Resources;
 import android.util.Log;
 
+import static com.example.smartbright.Definitions.DBG;
+
+import com.example.smartbright.dataprovider.ActivityRecognitionProvider;
 import com.google.android.gms.location.ActivityRecognitionResult;
 import com.google.android.gms.location.DetectedActivity;
 
@@ -17,14 +18,13 @@ import java.util.ArrayList;
  */
 
 public class DetectedActivitiesIntentService extends IntentService {
+    private static final String TAG = DetectedActivitiesIntentService.class.getSimpleName();
 
-    private static final boolean DGB = Definitions.DBG;
-    private final static String TAG = "DetectedActivitiesIS";
+    private static ActivityRecognitionProvider provider;
 
     public DetectedActivitiesIntentService() {
         // Use the TAG to name the worker thread.
         super(TAG);
-        //   this.context=c;
     }
 
     @Override
@@ -42,28 +42,30 @@ public class DetectedActivitiesIntentService extends IntentService {
             // 0 and 100.
             ArrayList<DetectedActivity> detectedActivities = (ArrayList) result.getProbableActivities();
 
-            String mostActivity = getActivityString(getApplicationContext(), result.getMostProbableActivity().getType());
+            String lastActivity = getActivityString(result.getMostProbableActivity().getType());
+            int lastConfidence = result.getMostProbableActivity().getConfidence();
+
+            provider.setActivity(lastActivity);
+            provider.setConfidence(lastConfidence);
 
             // Log each activity.
-            String act;
-            if (DGB) Log.i(TAG, "activities detected");
-            for (DetectedActivity da : detectedActivities) {
-
-                act = getActivityString(getApplicationContext(), da.getType());
-                int confCurAct = da.getConfidence();
-
-                if (DGB) Log.i(TAG, act + " " + confCurAct + "%");
+            if (DBG) {
+                String act;
+                for (DetectedActivity da : detectedActivities) {
+                    act = getActivityString(da.getType());
+                    int confCurAct = da.getConfidence();
+                    Log.i(TAG, act + " " + confCurAct + "%");
+                }
             }
 
-            if (DGB) Log.i(TAG, "activities detected the most: " + mostActivity);
-        }catch (Exception e){
-            Log.d(TAG, "Error in Activity Recog: " + e);
+            if (DBG) Log.i(TAG, "activities detected the most: " + lastActivity);
+        } catch (Exception e) {
+            Log.d(TAG, "Error in Activity Recognition: " + e);
         }
 
     }
 
-    public String getActivityString(Context context, int detectedActivityType) {
-        Resources resources = context.getResources();
+    public String getActivityString(int detectedActivityType) {
         switch(detectedActivityType) {
             case DetectedActivity.IN_VEHICLE:
                 return "IN_VEHICLE";
@@ -84,5 +86,8 @@ public class DetectedActivitiesIntentService extends IntentService {
             default:
                 return "UNIDENTIFIABLE";
         }
+    }
+    public static void setProvider(ActivityRecognitionProvider p) {
+        provider = p;
     }
 }

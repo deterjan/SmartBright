@@ -65,10 +65,10 @@
             </intent-filter>
         </receiver>
 
-        <service android:name=".ServiceClassPhone"/>
+        <service android:name=".service.ServiceClassPhone"/>
 
         <service
-            android:name=".DetectedActivitiesIntentService"
+            android:name=".service.DetectedActivitiesIntentService"
             android:exported="false" />
 
     </application>

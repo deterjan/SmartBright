@@ -1,7 +1,5 @@
 package com.example.smartbright;
 
-import static com.example.smartbright.Definitions.DBG;
-
 import android.Manifest;
 import android.app.Activity;
 import android.content.BroadcastReceiver;
@@ -12,12 +10,10 @@ import android.content.IntentFilter;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
-import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -27,6 +23,7 @@ import androidx.core.content.ContextCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.example.smartbright.logger.LoggerCSV;
+import com.example.smartbright.service.ServiceClassPhone;
 
 import java.io.File;
 import java.util.List;

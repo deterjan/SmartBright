@@ -1,4 +1,4 @@
-package com.example.smartbright.servicehelper;
+package com.example.smartbright.dataprovider;
 
 import static com.example.smartbright.Definitions.DBG;
 
@@ -15,30 +15,33 @@ import android.view.WindowManager;
 import com.example.smartbright.R;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 // todo satisfaction logging
-public class UserSatisfactionHelper {
-    private static final String TAG = UserSatisfactionHelper.class.getSimpleName();
+public class UserSatisfactionProvider implements DataProvider {
+    private static final String TAG = UserSatisfactionProvider.class.getSimpleName();
 
     final static public String USER_RATING_TIME = "USER_RATING_TIME";
     final static public long FOUR_HOURS_MS = 14400000;
-    final static public long ONE_MINUTE_MS = 60000;
-
     final static public long ASK_USER_SATISFACTION_PERIOD = FOUR_HOURS_MS;
 
     private final Service service;
-    private boolean screen_clicked = false;
-    private Integer lastUserSatisfaction = -1;
+    private boolean screenClicked = false;
+    private Integer lastUserSatisfaction = 2; // default satisfaction is OKAY
 
-    public UserSatisfactionHelper(Service service) {
+    public UserSatisfactionProvider(Service service) {
         this.service = service;
     }
 
-    public Integer getLastUserSatisfaction() {
-        return lastUserSatisfaction;
+    @Override
+    public Map<String, Object> getData() {
+        HashMap<String, Object> map = new HashMap<>();
+        map.put("satisfaction", lastUserSatisfaction);
+        return map;
     }
 
-    private boolean isPhoneLocked() {
+    public boolean isPhoneLocked() {
         KeyguardManager myKM = (KeyguardManager) service.getApplicationContext().
                 getSystemService(Context.KEYGUARD_SERVICE);
         return myKM.isKeyguardLocked();
@@ -76,7 +79,7 @@ public class UserSatisfactionHelper {
                             // mLogger.logStringEntry("Satis: " + 0);
                             lastUserSatisfaction = 2;
                         }
-                        screen_clicked = false;
+                        screenClicked = false;
                         dialog.cancel();
                         dialog.dismiss();
                     }
@@ -111,15 +114,15 @@ public class UserSatisfactionHelper {
         // Log.i("SATISFACTION", "locked: " + isPhoneLocked());
 
         if (System.currentTimeMillis() - lastTimeUserRating >= ASK_USER_SATISFACTION_PERIOD
-                && !screen_clicked && !isPhoneLocked()) {
-            screen_clicked = true;
+                && !screenClicked && !isPhoneLocked()) {
+            screenClicked = true;
             try {
                 askForSatisfaction();
                 prefsUserInput.edit().putLong(USER_RATING_TIME,
                         System.currentTimeMillis()).commit();
             } catch (Exception e) {
                 Log.d(TAG, "Error in alert dialog: " + e);
-                screen_clicked = false;
+                screenClicked = false;
             }
         }
     }
